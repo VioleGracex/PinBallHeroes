@@ -11,8 +11,112 @@ public class ParallaxController : MonoBehaviour
     [System.Serializable]
     public class ParallaxLayer
     {
-        public Transform[] tiles; // Assign two Transforms per layer in Inspector
+        [Tooltip("Prefab to spawn for this layer")]
+        public GameObject tilePrefab;
+        [HideInInspector]
+        public Transform[] tiles;
         public float parallaxSpeed = 0.5f;
+    }
+
+    [Button("Spawn Parallax Tiles")]
+    public void SpawnParallaxTiles()
+    {
+        if (!mainCamera) mainCamera = Camera.main;
+        float worldScreenWidth = 2f * mainCamera.orthographicSize * mainCamera.aspect;
+
+        // Destroy all old tiles and parents
+        foreach (var layer in layers)
+        {
+            if (layer.tiles != null)
+            {
+                foreach (var t in layer.tiles)
+                {
+                    if (t != null)
+                    {
+                        #if UNITY_EDITOR
+                        if (!Application.isPlaying)
+                            DestroyImmediate(t.gameObject);
+                        else
+                            Destroy(t.gameObject);
+                        #else
+                        Destroy(t.gameObject);
+                        #endif
+                    }
+                }
+            }
+            layer.tiles = null;
+        }
+        // Destroy old collection parents
+        var oldCollections = new System.Collections.Generic.List<GameObject>();
+        foreach (Transform child in transform)
+        {
+            if (child.name.StartsWith("ParallaxCollection_"))
+                oldCollections.Add(child.gameObject);
+        }
+        #if UNITY_EDITOR
+        foreach (var go in oldCollections)
+        {
+            if (!Application.isPlaying)
+                DestroyImmediate(go);
+            else
+                Destroy(go);
+        }
+        #else
+        foreach (var go in oldCollections)
+            Destroy(go);
+        #endif
+
+        // Get max prefab width (for spacing)
+        float maxPrefabWidth = 0f;
+        foreach (var layer in layers)
+        {
+            if (layer.tilePrefab == null) continue;
+            var sr = layer.tilePrefab.GetComponent<SpriteRenderer>();
+            if (!sr) continue;
+            float prefabWidth = sr.sprite.bounds.size.x * layer.tilePrefab.transform.localScale.x;
+            if (prefabWidth > maxPrefabWidth) maxPrefabWidth = prefabWidth;
+        }
+        if (maxPrefabWidth == 0f) return;
+
+        // How many collections needed to fill screen + 1 extra
+        int needed = Mathf.Max(2, Mathf.CeilToInt(worldScreenWidth / maxPrefabWidth) + 1);
+
+        // Each collection contains one tile from each layer
+        for (int i = 0; i < needed; i++)
+        {
+            GameObject collection = new GameObject($"ParallaxCollection_{i}");
+            collection.transform.SetParent(this.transform);
+            float x = mainCamera.transform.position.x - worldScreenWidth / 2f + maxPrefabWidth * i + maxPrefabWidth / 2f;
+            // For each layer, spawn one tile in this collection
+            for (int l = 0; l < layers.Length; l++)
+            {
+                var layer = layers[l];
+                if (layer.tilePrefab == null) continue;
+                GameObject go = null;
+                #if UNITY_EDITOR
+                if (!Application.isPlaying)
+                    go = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(layer.tilePrefab);
+                else
+                    go = Instantiate(layer.tilePrefab);
+                #else
+                go = Instantiate(layer.tilePrefab);
+                #endif
+                go.name = layer.tilePrefab.name + "_Tile_" + i;
+                go.transform.SetParent(collection.transform);
+                // Place horizontally at x, keep y/z from prefab
+                Vector3 pos = go.transform.position;
+                pos.x = x;
+                go.transform.position = pos;
+                // Track tiles for each layer
+                if (layer.tiles == null)
+                {
+                    layer.tiles = new Transform[needed];
+                }
+                layer.tiles[i] = go.transform;
+            }
+        }
+        // After spawning, adapt and align
+        AdaptTilesToScreen();
     }
 
     [Header("Background (fills camera)")]
@@ -37,9 +141,8 @@ public class ParallaxController : MonoBehaviour
 
     void Start()
     {
+        SpawnParallaxTiles();
         AdaptBackgroundToScreen();
-        AdaptTilesToScreen();
-        MoveAllToLeft();
     }
 
     [Button("Adapt Background & Tiles To Screen")]
@@ -47,7 +150,7 @@ public class ParallaxController : MonoBehaviour
     {
         AdaptBackgroundToScreen();
         AdaptTilesToScreen();
-        MoveAllToLeft();
+    // MoveAllToLeft removed: handled by spawner
     }
 
     [Button("Adapt Background Only")]
@@ -81,7 +184,8 @@ public class ParallaxController : MonoBehaviour
         // Center background behind the camera at specified depth
         Vector3 bgPos = mainCamera.transform.position;
         bgPos.z = backgroundDepth;
-        bgPos.y = mainCamera.transform.position.y; // <-- This is the fix!
+        bgPos.y = mainCamera.transform.position.y;
+        bgPos.x = mainCamera.transform.position.x; // Always center horizontally
         background.position = bgPos;
     }
 
@@ -140,48 +244,7 @@ public class ParallaxController : MonoBehaviour
         }
     }
 
-    [Button("Move All To Left")]
-    public void MoveAllToLeft()
-    {
-        if (!mainCamera) mainCamera = Camera.main;
-        float worldScreenWidth = 2f * mainCamera.orthographicSize * mainCamera.aspect;
-        float cameraLeftX = mainCamera.transform.position.x - (worldScreenWidth / 2f);
-
-        // Move background
-        if (background)
-        {
-            Vector3 bgPos = background.position;
-            float bgWidth = 0f;
-            var sr = background.GetComponent<SpriteRenderer>();
-            if (sr) bgWidth = sr.bounds.size.x;
-            // Move so that the background's right edge is at camera left + leftOffset
-            bgPos.x = cameraLeftX + leftOffset + bgWidth / 2f;
-            background.position = bgPos;
-        }
-
-        // Move parallax tiles
-        foreach (var layer in layers)
-        {
-            foreach (var tile in layer.tiles)
-            {
-                if (!tile) continue;
-                var sr = tile.GetComponent<SpriteRenderer>();
-                float width = sr ? sr.bounds.size.x : 0f;
-                Vector3 pos = tile.position;
-                // Move so that tile's right edge is at camera left + leftOffset
-                pos.x = cameraLeftX + leftOffset + width / 2f;
-                tile.position = pos;
-            }
-            // Re-calculate side-by-side for 2-tile layers
-            if (layer.tiles.Length == 2 && layer.tiles[0] && layer.tiles[1])
-            {
-                var sr0 = layer.tiles[0].GetComponent<SpriteRenderer>();
-                float width = sr0 ? sr0.bounds.size.x : 0f;
-                Vector3 basePos = layer.tiles[0].position;
-                layer.tiles[1].position = new Vector3(basePos.x + width, basePos.y, basePos.z);
-            }
-        }
-    }
+    // No longer needed: background is always centered, collections are placed by spawner
 
     public void MoveParallax(float duration = 2f)
     {

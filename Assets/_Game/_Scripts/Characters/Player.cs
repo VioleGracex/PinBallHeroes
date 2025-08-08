@@ -2,33 +2,38 @@ using UnityEngine;
 
 public class Player : MonoBehaviour
 {
-    public int maxHP = 100;
-    public int currentHP = 100;
-    public int attackDamage = 10;
-    public float attackSpeed = 1.5f; // Attacks per turn
+    [SerializeField] private int _maxHP = 100;
+    [SerializeField] private int _currentHP = 100;
+    [SerializeField] private int _attackDamage = 10;
+    [SerializeField] private float _attackSpeed = 1.0f; // Attacks per turn
+
+    public int MaxHP { get => _maxHP; set => _maxHP = value; }
+    public int CurrentHP { get => _currentHP; set => _currentHP = value; }
+    public int AttackDamage { get => _attackDamage; set => _attackDamage = value; }
+    public float AttackSpeed { get => _attackSpeed; set => _attackSpeed = value; }
 
     private void Start()
     {
-        currentHP = maxHP;
+        _currentHP = _maxHP;
     }
 
     // Returns how many attacks the player can do this turn
     public int GetAttacksPerTurn()
     {
-        return Mathf.FloorToInt(attackSpeed);
+        return Mathf.FloorToInt(_attackSpeed);
     }
 
     // Call this for each attack (from turn logic)
     public void Attack(EnemyParent target)
     {
         if (target != null)
-            target.TakeDamage(attackDamage);
+            target.TakeDamage(_attackDamage);
     }
 
     public void TakeDamage(int damage)
     {
-        currentHP -= damage;
-        if (currentHP <= 0)
+        _currentHP -= damage;
+        if (_currentHP <= 0)
         {
             Die();
         }
@@ -36,9 +41,9 @@ public class Player : MonoBehaviour
 
     public void Heal(int amount)
     {
-        currentHP += amount;
-        if (currentHP > maxHP)
-            currentHP = maxHP;
+        _currentHP += amount;
+        if (_currentHP > _maxHP)
+            _currentHP = _maxHP;
     }
 
     private void Die()

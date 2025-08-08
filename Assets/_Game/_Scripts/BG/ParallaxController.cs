@@ -1,3 +1,4 @@
+    #region Fields
 using UnityEngine;
 using System.Collections;
 using NaughtyAttributes;
@@ -17,6 +18,10 @@ public class ParallaxController : MonoBehaviour
         public Transform[] tiles;
         public float parallaxSpeed = 0.5f;
     }
+
+    #endregion
+
+    #region Inspector Buttons & Spawning
 
     [Button("Spawn Parallax Tiles")]
     public void SpawnParallaxTiles()
@@ -119,6 +124,9 @@ public class ParallaxController : MonoBehaviour
         AdaptTilesToScreen();
     }
 
+    #endregion
+
+    #region Fields (Serialized)
     [Header("Background (fills camera)")]
     public Transform background; // Assign a Transform with a SpriteRenderer
     public float backgroundDepth = 10f; // Z position for background
@@ -138,19 +146,23 @@ public class ParallaxController : MonoBehaviour
 
     [Header("Left Offset (World Units)")]
     public float leftOffset = -5.0f; // How much to move all tiles/background to the left from the camera's left edge
+    #endregion
 
+    #region Unity Methods
     void Start()
     {
         SpawnParallaxTiles();
         AdaptBackgroundToScreen();
     }
+    #endregion
+
+    #region Adapt & Align
 
     [Button("Adapt Background & Tiles To Screen")]
     public void AdaptAllToScreen()
     {
         AdaptBackgroundToScreen();
         AdaptTilesToScreen();
-    // MoveAllToLeft removed: handled by spawner
     }
 
     [Button("Adapt Background Only")]
@@ -244,8 +256,12 @@ public class ParallaxController : MonoBehaviour
         }
     }
 
+    #endregion
+
     // No longer needed: background is always centered, collections are placed by spawner
 
+
+    #region Parallax Logic
     public void MoveParallax(float duration = 2f)
     {
         if (parallaxCoroutine != null)
@@ -298,6 +314,7 @@ public class ParallaxController : MonoBehaviour
             yield return null;
         }
     }
+    #endregion
 
     [Button("Simulate Parallax (2s)")]
     public void SimulateParallax()

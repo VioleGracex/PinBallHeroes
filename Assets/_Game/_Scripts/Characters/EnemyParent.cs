@@ -2,15 +2,24 @@ using UnityEngine;
 
 public class EnemyParent : MonoBehaviour
 {
-    public int maxHP = 100;
-    public int currentHP = 100;
-    public int attackDamage = 8;
-    public float attackSpeed = 1.0f; // attacks per turn
+    // Stats with properties
+    [SerializeField] private int _maxHP = 100;
+    [SerializeField] private int _currentHP = 100;
+    [SerializeField] private int _attackDamage = 8;
+    [SerializeField] private float _attackSpeed = 1.0f; // attacks per turn
     protected Player player;
+
+    public int MaxHP { get => _maxHP; set => _maxHP = value; }
+    public int CurrentHP { get => _currentHP; set => _currentHP = value; }
+    public int AttackDamage { get => _attackDamage; set => _attackDamage = value; }
+    public float AttackSpeed { get => _attackSpeed; set => _attackSpeed = value; }
+
+    // Event for death notification
+    public event System.Action<EnemyParent> OnDeath;
 
     protected virtual void Start()
     {
-        currentHP = maxHP;
+        CurrentHP = MaxHP;
         player = FindFirstObjectByType<Player>();
     }
 
@@ -26,35 +35,36 @@ public class EnemyParent : MonoBehaviour
 
     public virtual int GetAttacksPerTurn()
     {
-        return Mathf.FloorToInt(attackSpeed);
+        return Mathf.FloorToInt(AttackSpeed);
     }
 
     public virtual void Attack(Player target)
     {
         if (target != null)
         {
-            target.TakeDamage(attackDamage);
-            Debug.Log($"{gameObject.name} attacks player for {attackDamage} damage.");
+            target.TakeDamage(AttackDamage);
+            Debug.Log($"{gameObject.name} attacks player for {AttackDamage} damage.");
         }
     }
 
     public virtual void TakeDamage(int damage)
     {
-        currentHP -= damage;
-        if (currentHP <= 0)
+        CurrentHP -= damage;
+        if (CurrentHP <= 0)
             Die();
     }
 
     public virtual void Heal(int amount)
     {
-        currentHP += amount;
-        if (currentHP > maxHP)
-            currentHP = maxHP;
+        CurrentHP += amount;
+        if (CurrentHP > MaxHP)
+            CurrentHP = MaxHP;
     }
 
     protected virtual void Die()
     {
         Debug.Log($"{gameObject.name} defeated!");
+        OnDeath?.Invoke(this);
         Destroy(gameObject);
     }
 }

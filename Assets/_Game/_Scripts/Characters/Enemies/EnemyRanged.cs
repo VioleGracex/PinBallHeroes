@@ -7,9 +7,9 @@ public class EnemyRanged : EnemyParent
 
     protected override void Start()
     {
-        maxHP = 20;
-        currentHP = maxHP;
-        attackDamage = 2;
+        MaxHP = 20;
+        CurrentHP = MaxHP;
+        AttackDamage = 2;
         base.Start();
     }
 

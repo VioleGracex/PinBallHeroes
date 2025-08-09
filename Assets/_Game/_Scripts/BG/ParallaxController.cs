@@ -129,7 +129,7 @@ public class ParallaxController : MonoBehaviour
     #region Fields (Serialized)
     [Header("Background (fills camera)")]
     public Transform background; // Assign a Transform with a SpriteRenderer
-    public float backgroundDepth = 10f; // Z position for background
+    float backgroundDepth = 10f; // Z position for background
 
     [Header("Scaling")]
     public bool keepAspect = true; // If true, keep aspect ratio for ALL layers and background

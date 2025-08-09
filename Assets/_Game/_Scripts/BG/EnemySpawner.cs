@@ -46,7 +46,7 @@ public class EnemySpawner : MonoBehaviour
         Gizmos.color = Color.red;
         for (int i = 0; i < 3; i++)
         {
-            Gizmos.DrawWireSphere(new Vector3(spawnX, yLanes[i], 0f), 0.1f); //enemy spawn point
+            Gizmos.DrawWireSphere(new Vector3(spawnX, yLanes[i], 0f), 4f); //enemy spawn point
         }
     }
     #endregion

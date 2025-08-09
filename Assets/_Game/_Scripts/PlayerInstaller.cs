@@ -31,7 +31,7 @@ public class PlayerInstaller : MonoInstaller
         if (mainCamera == null) return;
         Vector3 spawnPos = GetPlayerSpawnPosition();
         Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(spawnPos, 0.1f);
+        Gizmos.DrawWireSphere(spawnPos, 4f);
     }
     #endregion
 

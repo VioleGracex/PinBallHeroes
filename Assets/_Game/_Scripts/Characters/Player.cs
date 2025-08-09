@@ -19,6 +19,13 @@ public class Player : MonoBehaviour
     public GameObject projectilePrefab;
     [Header("Projectile Fire Point Offset (local)")]
     public Vector2 firePointOffset = new Vector2(0.5f, 0.2f);
+    [Header("Projectile Travel Time (seconds)")]
+    [SerializeField]
+    private float projectileTravelTime = 1f;
+
+    [Header("UI")]
+    [SerializeField]
+    private HealthBarUI healthBarUI;
 
     public event System.Action<Player> OnFinishedActions;
 
@@ -26,16 +33,25 @@ public class Player : MonoBehaviour
     public int behaviorPattern = 1; // For future expansion
 
     private bool _hasSpawned = false;
+    private bool readyToPlayTurn = false;
 
     private IEnumerator Start()
     {
         _currentHP = _maxHP;
+        readyToPlayTurn = false;
+            // Ensure HealthBarUI is updated at start
+            if (healthBarUI != null)
+            {
+                healthBarUI.SetHP(_currentHP, _maxHP);
+            }
         if (!_hasSpawned)
         {
-            Vector3 target = transform.position + Vector3.right * 0.7f;
+            Vector3 target = transform.position + Vector3.right * 22f;
             yield return StartCoroutine(MoveToPosition(target, 0.01f));
             _hasSpawned = true;
         }
+        yield return new WaitForSeconds(1f);
+        readyToPlayTurn = true;
     }
 
     // Returns how many attacks the player can do this turn
@@ -62,6 +78,12 @@ public class Player : MonoBehaviour
     public void TakeDamage(int damage)
     {
         _currentHP -= damage;
+        Debug.Log($"[Player] Took Damage. Current HP: {_currentHP}");
+        if (healthBarUI != null)
+        {
+            healthBarUI.SetHP(_currentHP, _maxHP);
+            healthBarUI.ShowDamage(damage);
+        }
         if (_currentHP <= 0)
         {
             Die();
@@ -73,6 +95,10 @@ public class Player : MonoBehaviour
         _currentHP += amount;
         if (_currentHP > _maxHP)
             _currentHP = _maxHP;
+        if (healthBarUI != null)
+        {
+            healthBarUI.SetHP(_currentHP, _maxHP);
+        }
     }
 
     private void Die()
@@ -84,6 +110,9 @@ public class Player : MonoBehaviour
     // Called by TurnManager to start the player's turn
     public IEnumerator PlayTurn(List<EnemyParent> enemies)
     {
+        // Wait until ready to play turn (e.g. entrance animation finished)
+        while (!readyToPlayTurn)
+            yield return null;
         if (enemies == null || enemies.Count == 0 || enemies.All(e => e == null))
         {
             Debug.Log("[Player] No enemies alive, ending turn immediately.");
@@ -98,12 +127,15 @@ public class Player : MonoBehaviour
             {
                 if (behaviorPattern == 1)
                 {
+                    Debug.Log($"[Player] behaviorPattern == 1 Attacking {target.gameObject.name} (HP: {target.CurrentHP}) with projectile.");
                     if (!_originalPosition.HasValue) _originalPosition = transform.position;
-                    Vector3 backPos = transform.position + Vector3.left * 2f;
+                    Vector3 backPos = transform.position + Vector3.left *  4f;
                     yield return StartCoroutine(MoveToPosition(backPos, 0.01f));
+                    Debug.Log($"[Player] Shooting projectile at {target.gameObject.name} from {_originalPosition.Value}.");
                     bool arc = target.transform.position.y > transform.position.y;
                     Vector3 firePoint = transform.position + (Vector3)firePointOffset;
                     yield return StartCoroutine(ShootProjectileAtTarget(target, arc, firePoint));
+                    Debug.Log($"[Player] Returning to original position {_originalPosition.Value} after attack.");
                     yield return StartCoroutine(MoveToPosition(_originalPosition.Value, 0.01f));
                 }
                 else
@@ -136,9 +168,10 @@ public class Player : MonoBehaviour
         if (projectilePrefab == null || target == null) yield break;
         Vector3 start = firePoint;
         Vector3 end = target.transform.position;
-        float duration = 0.3f;
+        float duration = projectileTravelTime;
         float t = 0f;
         GameObject proj = Instantiate(projectilePrefab, start, Quaternion.identity);
+        Debug.Log($"[Player] Shot projectile at {target.gameObject.name} from {start} to {end} (arc: {arc})");
         if (arc)
         {
             Vector3 peak = (start + end) / 2f + Vector3.up * 2f;
@@ -161,13 +194,17 @@ public class Player : MonoBehaviour
             }
         }
         if (proj != null) Destroy(proj);
-        if (target != null) target.TakeDamage(_attackDamage);
+        if (target != null)
+        {
+            Debug.Log($"[Player] Projectile reached {target.gameObject.name} at {target.transform.position}");
+            target.TakeDamage(_attackDamage);
+        }
     }
 
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.green;
         Vector3 firePoint = transform.position + (Vector3)firePointOffset;
-        Gizmos.DrawWireSphere(firePoint, 0.05f);
+        Gizmos.DrawWireSphere(firePoint, 1f);
     }
 }

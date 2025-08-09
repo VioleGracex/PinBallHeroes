@@ -4,14 +4,17 @@ using System.Collections;
 public class EnemyMelee : EnemyParent
 {
     public float attackRange = 1.5f;
-    public float moveSpeed = 1f;
+    public float moveSpeed = 12f;
     private Vector2 originalPosition;
     public GameObject slashEffectPrefab;
+
+    private bool readyToPlayTurn = false;
 
     protected override void Start()
     {
         base.Start();
         originalPosition = transform.position;
+        readyToPlayTurn = false;
         StartCoroutine(MoveTowardPlayerOnSpawn());
     }
 
@@ -20,7 +23,7 @@ public class EnemyMelee : EnemyParent
         if (player == null) yield break;
         Vector3 dir = (player.transform.position - transform.position).normalized;
         Vector3 start = transform.position;
-        Vector3 target = start + dir * moveSpeed;
+        Vector3 target = start + dir * moveSpeed/2f;
         float duration = 0.4f;
         float t = 0f;
         while (t < 1f)
@@ -31,11 +34,19 @@ public class EnemyMelee : EnemyParent
             yield return null;
         }
         transform.position = target;
+        readyToPlayTurn = true;
     }
 
     // Idle/turn-based: Called by TurnManager
     public override void TakeTurn()
     {
+        StartCoroutine(WaitAndTakeTurn());
+    }
+
+    private IEnumerator WaitAndTakeTurn()
+    {
+        while (!readyToPlayTurn)
+            yield return null;
         Debug.Log($"[EnemyMelee] {gameObject.name} begins turn.");
         StartCoroutine(ActMeleeTurn());
     }
@@ -97,6 +108,7 @@ public class EnemyMelee : EnemyParent
 
     public override void Attack(Player target)
     {
+        Debug.Log($"[EnemyMelee] {gameObject.name} attacks player for {AttackDamage} damage.");
         base.Attack(target);
         // Add melee-specific effects if needed
     }

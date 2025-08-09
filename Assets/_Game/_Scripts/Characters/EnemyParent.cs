@@ -5,7 +5,7 @@ public class EnemyParent : MonoBehaviour
 {
     // Stats with properties
     [SerializeField] private int _maxHP = 100;
-    [SerializeField] private int _currentHP = 100;
+    private int _currentHP = 100;
     [SerializeField] private int _attackDamage = 8;
     [SerializeField] private float _attackSpeed = 1.0f; // attacks per turn
     [Inject]
@@ -24,6 +24,10 @@ public class EnemyParent : MonoBehaviour
     public bool ReadyToAttack { get; protected set; } = true;
     public bool FinishedActions { get; protected set; } = false;
 
+    [Header("UI")]
+    [SerializeField]
+    private HealthBarUI healthBarUI;
+
     protected virtual void Start()
     {
         CurrentHP = MaxHP;
@@ -36,6 +40,11 @@ public class EnemyParent : MonoBehaviour
             else
                 Debug.Log($"[EnemyParent] Player reference found via FindFirstObjectByType on {gameObject.name}.");
         }
+            // Ensure HealthBarUI is updated at start
+            if (healthBarUI != null)
+            {
+                healthBarUI.SetHP(CurrentHP, MaxHP);
+            }
     }
 
     // Used by TurnManager to process this enemy's turn
@@ -65,6 +74,11 @@ public class EnemyParent : MonoBehaviour
     public virtual void TakeDamage(int damage)
     {
         CurrentHP -= damage;
+        if (healthBarUI != null)
+        {
+            healthBarUI.SetHP(CurrentHP, MaxHP);
+            healthBarUI.ShowDamage(damage);
+        }
         if (CurrentHP <= 0)
             Die();
     }
@@ -74,6 +88,10 @@ public class EnemyParent : MonoBehaviour
         CurrentHP += amount;
         if (CurrentHP > MaxHP)
             CurrentHP = MaxHP;
+        if (healthBarUI != null)
+        {
+            healthBarUI.SetHP(CurrentHP, MaxHP);
+        }
     }
 
     // Call this when the enemy is ready to attack (e.g. after move/animation)

@@ -9,14 +9,25 @@ public class TurnManager : MonoBehaviour
     [Inject]
     Player player;
     public List<EnemyParent> enemies = new List<EnemyParent>();
-    public float turnDelay = 0.5f;
+    public float turnDelay = 1.0f;
     public bool autoStart = true;
     [SerializeField]
     private ParallaxController parallaxController;
     [SerializeField]
     private WaveSpawner waveSpawner;
+    [SerializeField]
+    private TurnIndicatorUI turnIndicatorUI;
+
     private void Start()
     {
+        if (player == null)
+        {
+            player = FindFirstObjectByType<Player>();
+            if (player == null)
+                Debug.LogWarning("[TurnManager] Player reference is still null!");
+            else
+                Debug.Log("[TurnManager] Player reference found via FindFirstObjectByType.");
+        }
         Debug.Log("[TurnManager] Initialized with player: " + (player != null ? player.name : "null"));
         if (autoStart)
             StartCoroutine(RunTurns());
@@ -53,6 +64,7 @@ public class TurnManager : MonoBehaviour
         while (player != null && player.CurrentHP > 0 && enemies.Count > 0)
         {
             // Player turn
+            if (turnIndicatorUI != null) turnIndicatorUI.SetPlayerTurn();
             Debug.Log("[TurnManager] Player's turn begins.");
             bool playerFinished = false;
             System.Action<Player> onPlayerFinished = null;
@@ -67,10 +79,21 @@ public class TurnManager : MonoBehaviour
             while (!playerFinished && player != null && player.CurrentHP > 0) yield return null;
             yield return new WaitForSeconds(turnDelay);
             // Enemy turn
+            if (turnIndicatorUI != null) turnIndicatorUI.SetEnemyTurn();
             yield return StartCoroutine(EnemiesTurn());
             yield return new WaitForSeconds(turnDelay);
         }
-        Debug.Log("Combat ended");
+        if (turnIndicatorUI != null) turnIndicatorUI.Hide();
+        string reason = "[TurnManager] Combat ended: ";
+        if (player == null)
+            reason += "Player object is null (destroyed or not found).";
+        else if (player.CurrentHP <= 0)
+            reason += "Player defeated (HP <= 0).";
+        else if (enemies.Count == 0 || enemies.All(e => e == null))
+            reason += "All enemies defeated or removed.";
+        else
+            reason += "Unknown reason (possible bug).";
+        Debug.Log(reason);
     }
 
     private EnemyParent GetLowestHPEnemy()

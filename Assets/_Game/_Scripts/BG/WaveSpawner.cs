@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using NaughtyAttributes;
 using System.Linq;
+using TMPro;
 
 [System.Serializable]
 public class WaveUnit
@@ -20,13 +21,18 @@ public class WaveSpawner : MonoBehaviour
     public List<WaveUnit> units;
     [Tooltip("Spawner to use for enemy placement")] public EnemySpawner enemySpawner;
 
+    [Header("UI")]
+    public TextMeshProUGUI waveText;
+
     private List<GameObject> aliveEnemies = new List<GameObject>();
     private int currentWave = 0;
+    public System.Action OnWaveCleared;
 
     private void Start()
     {
         if (mode == WaveMode.Infinite)
             StartNextWave();
+        UpdateWaveText();
     }
 
     [Button("Start Next Wave")]
@@ -35,6 +41,7 @@ public class WaveSpawner : MonoBehaviour
         currentWave++;
         aliveEnemies.Clear();
         SpawnWave();
+        UpdateWaveText();
     }
 
     #region Wave Spawning
@@ -86,11 +93,15 @@ public class WaveSpawner : MonoBehaviour
         aliveEnemies.Remove(enemy.gameObject);
         if (aliveEnemies.Count == 0)
         {
-            // All enemies defeated: call pinball game, card choose, then next wave (not implemented)
-            Debug.Log("All enemies defeated! (Pinball game, card choose, next wave TODO)");
-            if (mode == WaveMode.Infinite)
-                StartNextWave();
+            Debug.Log("All enemies defeated! Ending wave and combat, going to pinball mode.");
+            OnWaveCleared?.Invoke();
         }
+    }
+
+    private void UpdateWaveText()
+    {
+        if (waveText != null)
+            waveText.text = $"Wave: {currentWave}";
     }
 
     // Helper for NaughtyAttributes

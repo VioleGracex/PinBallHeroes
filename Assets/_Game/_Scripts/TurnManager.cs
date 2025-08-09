@@ -6,6 +6,7 @@ using Zenject;
 
 public class TurnManager : MonoBehaviour
 {
+    #region Fields and Game State
     [Inject]
     Player player;
     public List<EnemyParent> enemies = new List<EnemyParent>();
@@ -16,8 +17,21 @@ public class TurnManager : MonoBehaviour
     [SerializeField]
     private WaveSpawner waveSpawner;
     [SerializeField]
+    private CardsManager cardsManager;
+    [SerializeField]
     private TurnIndicatorUI turnIndicatorUI;
+    [Header("Currency Collection")]
+    [SerializeField]
+    private CannonManager cannonManager;
+    [Header("Pause Menu")]
+    [SerializeField]
+    private GameObject pauseMenu;
+    private enum GameMode { Combat, Pinball, CardSelect }
+    private GameMode currentMode = GameMode.Combat;
+    private int enemiesFinishedCount = 0;
+    #endregion
 
+    #region Unity Lifecycle
     private void Start()
     {
         if (player == null)
@@ -29,10 +43,149 @@ public class TurnManager : MonoBehaviour
                 Debug.Log("[TurnManager] Player reference found via FindFirstObjectByType.");
         }
         Debug.Log("[TurnManager] Initialized with player: " + (player != null ? player.name : "null"));
+        if (waveSpawner != null)
+            waveSpawner.OnWaveCleared += OnWaveCleared;
         if (autoStart)
-            StartCoroutine(RunTurns());
+            StartCoroutine(StartCombatMode());
     }
 
+    private void OnDestroy()
+    {
+        if (waveSpawner != null)
+            waveSpawner.OnWaveCleared -= OnWaveCleared;
+    }
+    #endregion
+
+    #region Combat Mode
+    private IEnumerator StartCombatMode()
+    {
+        currentMode = GameMode.Combat;
+        yield return new WaitForSeconds(2f);
+        if (parallaxController != null)
+        {
+            parallaxController.MoveParallax(2f);
+            Debug.Log("[TurnManager] Parallax moving for 2 seconds.");
+            yield return new WaitForSeconds(2.2f);
+        }
+        // Only start a new wave if there are no enemies
+        if (enemies.Count == 0 && waveSpawner != null)
+        {
+            waveSpawner.StartNextWave();
+        }
+        yield return StartCoroutine(TurnCycle());
+    }
+
+    private IEnumerator TurnCycle()
+    {
+        while (player != null && player.CurrentHP > 0 && enemies.Count > 0)
+        {
+            yield return StartCoroutine(PlayerTurn());
+            yield return new WaitForSeconds(turnDelay);
+            if (turnIndicatorUI != null) turnIndicatorUI.SetEnemyTurn();
+            yield return StartCoroutine(EnemiesTurn());
+            yield return new WaitForSeconds(turnDelay);
+        }
+        EndCombat();
+    }
+
+    private void EndCombat()
+    {
+        if (turnIndicatorUI != null) turnIndicatorUI.Hide();
+        Debug.Log(GetCombatEndReason());
+        CheckCombatEnd();
+    }
+
+    private void CheckCombatEnd()
+    {
+        if (player == null || player.CurrentHP <= 0)
+            return;
+        if (cannonManager != null)
+            StartCoroutine(cannonManager.CollectAllCurrencyToCannon());
+        StartPinballMode();
+    }
+    #endregion
+
+    #region Pinball Mode
+    private void StartPinballMode()
+    {
+        currentMode = GameMode.Pinball;
+        Debug.Log("[TurnManager] Pinball mode started (not yet implemented)");
+        // TODO: Implement pinball gameplay here
+        Debug.Log("[TurnManager] Pinball mode ended. Calculating currency...");
+        StartCardMode();
+    }
+    #endregion
+
+    #region Card Select Mode
+ 
+    private void StartCardMode()
+    {
+        currentMode = GameMode.CardSelect;
+        if (cardsManager != null)
+        {
+            cardsManager.OnCardSelectionEnded += OnCardSelectionEndedHandler;
+            cardsManager.SpawnCards();
+        }
+
+    }
+
+    private void OnCardSelectionEndedHandler()
+    {
+        if (cardsManager != null)
+            cardsManager.OnCardSelectionEnded -= OnCardSelectionEndedHandler;
+        Debug.Log("[TurnManager] Card select mode ended. Returning to combat.");
+        StartCoroutine(StartCombatMode());
+    }
+    #endregion
+
+    #region Turn Flow Utility Methods
+    private IEnumerator PlayerTurn()
+    {
+        if (turnIndicatorUI != null) turnIndicatorUI.SetPlayerTurn();
+        Debug.Log("[TurnManager] Player's turn begins.");
+        bool playerFinished = false;
+        System.Action<Player> onPlayerFinished = null;
+        onPlayerFinished = (p) => { playerFinished = true; player.OnFinishedActions -= onPlayerFinished; };
+        player.OnFinishedActions += onPlayerFinished;
+        yield return StartCoroutine(player.PlayTurn(enemies));
+        if (playerFinished)
+            Debug.Log("[TurnManager] Player finished turn and performed actions.");
+        else
+            Debug.Log("[TurnManager] Player finished turn but did nothing.");
+        while (!playerFinished && player != null && player.CurrentHP > 0) yield return null;
+    }
+
+    private IEnumerator EnemiesTurn()
+    {
+        enemiesFinishedCount = 0;
+        int livingEnemies = enemies.Count(e => e != null);
+        foreach (var enemy in enemies.ToList())
+        {
+            if (enemy == null) continue;
+            enemy.ResetTurnState();
+            Debug.Log($"[TurnManager] Enemy turn: {enemy.gameObject.name}");
+            bool enemyDidAnything = false;
+            System.Action<EnemyParent> onEnemyFinished = null;
+            onEnemyFinished = (e) => { enemyDidAnything = true; enemy.OnFinishedActions -= onEnemyFinished; };
+            enemy.OnFinishedActions += onEnemyFinished;
+            enemy.TakeTurn();
+            while (!enemyDidAnything && enemy != null)
+                yield return null;
+            if (enemyDidAnything)
+                Debug.Log($"[TurnManager] {enemy.gameObject.name} finished turn and performed actions.");
+            else
+                Debug.Log($"[TurnManager] {enemy.gameObject.name} finished turn but did nothing.");
+        }
+        while (enemiesFinishedCount < livingEnemies)
+        {
+            if (player == null || player.CurrentHP <= 0) yield break;
+            if (enemies.Count(e => e != null) == 0) yield break;
+            yield return null;
+        }
+    }
+    #endregion
+
+    #region Enemy Registration
     public void RegisterEnemy(EnemyParent enemy)
     {
         if (!enemies.Contains(enemy))
@@ -48,7 +201,6 @@ public class TurnManager : MonoBehaviour
         enemy.OnFinishedActions -= OnEnemyFinishedActions;
     }
 
-    private int enemiesFinishedCount = 0;
     private void OnEnemyFinishedActions(EnemyParent enemy)
     {
         enemiesFinishedCount++;
@@ -58,32 +210,19 @@ public class TurnManager : MonoBehaviour
     {
         UnregisterEnemy(enemy);
     }
+    #endregion
 
-    public IEnumerator RunTurns()
+    #region Wave Events
+    private void OnWaveCleared()
     {
-        while (player != null && player.CurrentHP > 0 && enemies.Count > 0)
-        {
-            // Player turn
-            if (turnIndicatorUI != null) turnIndicatorUI.SetPlayerTurn();
-            Debug.Log("[TurnManager] Player's turn begins.");
-            bool playerFinished = false;
-            System.Action<Player> onPlayerFinished = null;
-            onPlayerFinished = (p) => { playerFinished = true; player.OnFinishedActions -= onPlayerFinished; };
-            player.OnFinishedActions += onPlayerFinished;
-            yield return StartCoroutine(player.PlayTurn(enemies));
-            if (playerFinished)
-                Debug.Log("[TurnManager] Player finished turn and performed actions.");
-            else
-                Debug.Log("[TurnManager] Player finished turn but did nothing.");
-            // Wait until player signals finished
-            while (!playerFinished && player != null && player.CurrentHP > 0) yield return null;
-            yield return new WaitForSeconds(turnDelay);
-            // Enemy turn
-            if (turnIndicatorUI != null) turnIndicatorUI.SetEnemyTurn();
-            yield return StartCoroutine(EnemiesTurn());
-            yield return new WaitForSeconds(turnDelay);
-        }
-        if (turnIndicatorUI != null) turnIndicatorUI.Hide();
+        StopAllCoroutines();
+        EndCombat();
+    }
+    #endregion
+
+    #region Utility
+    private string GetCombatEndReason()
+    {
         string reason = "[TurnManager] Combat ended: ";
         if (player == null)
             reason += "Player object is null (destroyed or not found).";
@@ -93,72 +232,17 @@ public class TurnManager : MonoBehaviour
             reason += "All enemies defeated or removed.";
         else
             reason += "Unknown reason (possible bug).";
-        Debug.Log(reason);
+        return reason;
     }
 
-    private EnemyParent GetLowestHPEnemy()
+    public void GameOver()
     {
-        if (enemies.Count == 0) return null;
-        return enemies.OrderBy(e => e.CurrentHP).FirstOrDefault();
+        Time.timeScale = 0f;
+        if (pauseMenu != null)
+        {
+            pauseMenu.SetActive(true);
+        }
+        Debug.Log("[TurnManager] Game Over! Game paused and pause menu shown.");
     }
-
-    private IEnumerator EnemiesTurn()
-    {
-        // If no enemies are alive, trigger next wave and post-wave logic
-        if (enemies == null || enemies.Count == 0 || enemies.All(e => e == null))
-        {
-            Debug.Log("[TurnManager] No enemies alive at start of enemy turn. Spawning next wave.");
-
-            if (waveSpawner != null)
-            {
-                waveSpawner.StartNextWave();
-                Debug.Log("[TurnManager] Called StartNextWave on WaveSpawner.");
-                // Wait a frame for new enemies to spawn
-                yield return null;
-                // Move parallax for 2 seconds
-                if (parallaxController != null)
-                {
-                    parallaxController.MoveParallax(2f);
-                    Debug.Log("[TurnManager] Parallax moving for 2 seconds.");
-                    yield return new WaitForSeconds(2f);
-                }
-                // Pinball game placeholder
-                Debug.Log("[TurnManager] Pinball game (not implemented)");
-                // Power card choose placeholder
-                Debug.Log("[TurnManager] Power card choose (not implemented)");
-            }
-            else
-            {
-                Debug.LogWarning("[TurnManager] No WaveSpawner found in scene!");
-            }
-            yield break;
-        }
-        enemiesFinishedCount = 0;
-        int livingEnemies = enemies.Count(e => e != null);
-        foreach (var enemy in enemies.ToList())
-        {
-            if (enemy == null) continue;
-            enemy.ResetTurnState();
-            Debug.Log($"[TurnManager] Enemy turn: {enemy.gameObject.name}");
-            bool enemyDidAnything = false;
-            System.Action<EnemyParent> onEnemyFinished = null;
-            onEnemyFinished = (e) => { enemyDidAnything = true; enemy.OnFinishedActions -= onEnemyFinished; };
-            enemy.OnFinishedActions += onEnemyFinished;
-            enemy.TakeTurn();
-            // Wait for enemy to finish (event-driven)
-            while (!enemyDidAnything && enemy != null)
-                yield return null;
-            if (enemyDidAnything)
-                Debug.Log($"[TurnManager] {enemy.gameObject.name} finished turn and performed actions.");
-            else
-                Debug.Log($"[TurnManager] {enemy.gameObject.name} finished turn but did nothing.");
-        }
-        // Wait until all living enemies have finished their actions or are destroyed
-        while (enemiesFinishedCount < livingEnemies)
-        {
-            if (player == null || player.CurrentHP <= 0) yield break;
-            if (enemies.Count(e => e != null) == 0) yield break;
-            yield return null;
-        }
-    }
+    #endregion
 }

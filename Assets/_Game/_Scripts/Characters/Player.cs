@@ -5,15 +5,31 @@ using System.Collections.Generic;
 
 public class Player : MonoBehaviour
 {
+    [Header("Currency")]
+    [Tooltip("Chance (0-1) to drop currency on attack (e.g. 0.2 for 20%)")]
+    [Range(0f,1f)]
+    public float currencyDropChance = 0.2f;
     [SerializeField] private int _maxHP = 100;
     [SerializeField] private int _currentHP = 100;
     [SerializeField] private int _attackDamage = 10;
     [SerializeField] private float _attackSpeed = 1.0f; // Attacks per turn
+    [SerializeField] private int _armor = 0;
 
     public int MaxHP { get => _maxHP; set => _maxHP = value; }
     public int CurrentHP { get => _currentHP; set => _currentHP = value; }
+
+    public void UpdateHealthBar()
+    {
+        if (CurrentHP > MaxHP)
+                CurrentHP = MaxHP;
+        if (healthBarUI != null)
+        {
+            healthBarUI.SetHP(_currentHP, _maxHP);
+        }
+    }
     public int AttackDamage { get => _attackDamage; set => _attackDamage = value; }
     public float AttackSpeed { get => _attackSpeed; set => _attackSpeed = value; }
+    public int Armor { get => _armor; set => _armor = value; }
 
     [Header("Projectile Settings")]
     public GameObject projectilePrefab;
@@ -73,10 +89,20 @@ public class Player : MonoBehaviour
             // fallback: instant damage
             target.TakeDamage(_attackDamage);
         }
+
+        // Currency drop chance on attack
+        if (target != null && Random.value < currencyDropChance)
+        {
+            // Drop currency at target position (arc drop behind enemy)
+            // Animation and pooling logic to be implemented
+            Debug.Log($"[Player] Currency dropped on attack at {target.transform.position} (Chance: {currencyDropChance*100})");
+           target.SpawnCurrencyOnDamage();
+        }
     }
 
     public void TakeDamage(int damage)
     {
+        damage = Mathf.Max(0, damage - _armor); // Apply armor
         _currentHP -= damage;
         Debug.Log($"[Player] Took Damage. Current HP: {_currentHP}");
         if (healthBarUI != null)

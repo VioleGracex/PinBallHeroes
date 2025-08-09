@@ -1,13 +1,21 @@
 using UnityEngine;
 using Zenject;
+using System.Collections;
 
 public class EnemyParent : MonoBehaviour
 {
+    [Header("Currency")]
+    [Tooltip("How much currency this enemy drops on death.")]
+    public int currencyOnKill = 1;
     // Stats with properties
     [SerializeField] private int _maxHP = 100;
     private int _currentHP = 100;
     [SerializeField] private int _attackDamage = 8;
     [SerializeField] private float _attackSpeed = 1.0f; // attacks per turn
+
+    [Header("Currency Visuals")]
+    [Tooltip("Prefab for the currency (pinball) to spawn on drop.")]
+    public GameObject currencyPrefab;
     [Inject]
     protected Player player;
 
@@ -24,9 +32,12 @@ public class EnemyParent : MonoBehaviour
     public bool ReadyToAttack { get; protected set; } = true;
     public bool FinishedActions { get; protected set; } = false;
 
+
     [Header("UI")]
     [SerializeField]
     private HealthBarUI healthBarUI;
+
+
 
     protected virtual void Start()
     {
@@ -79,6 +90,11 @@ public class EnemyParent : MonoBehaviour
             healthBarUI.SetHP(CurrentHP, MaxHP);
             healthBarUI.ShowDamage(damage);
         }
+        // Drop currency on hit (arc drop behind enemy)
+        if (damage > 0)
+        {
+            SpawnCurrencyOnDamage(1);
+        }
         if (CurrentHP <= 0)
             Die();
     }
@@ -114,10 +130,104 @@ public class EnemyParent : MonoBehaviour
         FinishedActions = false;
     }
 
+    /// <summary>
+    /// Spawns a currency drop at this enemy's position.
+    /// </summary>
+    /// <param name="type">Type of drop: OnDamage (behind), OnDeath (in place, bounce)</param>
+    /// <param name="amount">How many currency to spawn (default 1)</param>
+
+
+
+    private IEnumerator AnimateArcDrop(Transform obj, Vector3 start, Vector3 end, float arcHeight, float duration)
+    {
+        float t = 0f;
+        while (t < 1f)
+        {
+            t += Time.deltaTime / duration;
+            float height = Mathf.Sin(Mathf.PI * t) * arcHeight;
+            obj.position = Vector3.Lerp(start, end, t) + Vector3.up * height;
+            yield return null;
+        }
+        obj.position = end;
+    }
+
+    private IEnumerator AnimateBounceDrop(Transform obj, Vector3 start, float floorY, float bounceHeight, float duration)
+    {
+        float t = 0f;
+        Vector3 end = new Vector3(start.x, floorY, start.z);
+        bool bounced = false;
+        while (t < 1f)
+        {
+            t += Time.deltaTime / duration;
+            float y;
+            if (!bounced && t < 0.5f)
+            {
+                // Fall down
+                y = Mathf.Lerp(start.y, floorY + bounceHeight, t * 2f);
+            }
+            else
+            {
+                if (!bounced) { t = 0.5f; bounced = true; }
+                // Bounce up and settle
+                float bounceT = (t - 0.5f) * 2f;
+                y = Mathf.Lerp(floorY + bounceHeight, floorY, bounceT);
+            }
+            obj.position = new Vector3(start.x, y, start.z);
+            yield return null;
+        }
+        obj.position = end;
+    }
+
+
     protected virtual void Die()
     {
         Debug.Log($"{gameObject.name} defeated!");
+        // Drop currency on death (drop in place, bounce)
+    SpawnCurrencyOnDeath(currencyOnKill);
         OnDeath?.Invoke(this);
         Destroy(gameObject);
     }
+
+    public void SpawnCurrencyOnDamage(int amount = 1)
+    {
+        if (currencyPrefab == null)
+        {
+            Debug.LogWarning($"[EnemyParent] No currencyPrefab assigned!");
+            return;
+        }
+        for (int i = 0; i < amount; i++)
+        {
+            Vector3 spawnPos = transform.position;
+            GameObject currency = Instantiate(currencyPrefab, spawnPos, Quaternion.identity);
+            // Drop slightly behind the enemy (relative to facing direction, here -X)
+            Vector3 targetPos = spawnPos + Vector3.left * 0.7f + Vector3.up * 0.2f;
+            float arcHeight = 0.5f;
+            float duration = 0.5f;
+            StartCoroutine(AnimateArcDrop(currency.transform, spawnPos, targetPos, arcHeight, duration));
+        }
+    }
+
+    public void SpawnCurrencyOnDeath(int amount = 1)
+    {
+        if (currencyPrefab == null)
+        {
+            Debug.LogWarning($"[EnemyParent] No currencyPrefab assigned!");
+            return;
+        }
+        for (int i = 0; i < amount; i++)
+        {
+            Vector3 spawnPos = transform.position;
+            GameObject currency = Instantiate(currencyPrefab, spawnPos, Quaternion.identity);
+            // Drop at head, animate bounce to floor
+            Vector3 headPos = spawnPos + Vector3.up * 1.0f;
+            currency.transform.position = headPos;
+            float floorY = spawnPos.y;
+            float bounceHeight = 0.7f;
+            float duration = 0.7f;
+            StartCoroutine(AnimateBounceDrop(currency.transform, headPos, floorY, bounceHeight, duration));
+        }
+    }
 }
+
+
+    

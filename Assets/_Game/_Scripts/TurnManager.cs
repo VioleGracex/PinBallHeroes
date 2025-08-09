@@ -14,6 +14,9 @@ public class TurnManager : MonoBehaviour
     public bool autoStart = true;
     [SerializeField]
     private ParallaxController parallaxController;
+    [Header("Camera")]
+    [SerializeField]
+    private CameraController cameraController;
     [SerializeField]
     private WaveSpawner waveSpawner;
     [SerializeField]
@@ -62,7 +65,10 @@ public class TurnManager : MonoBehaviour
     private IEnumerator StartCombatMode()
     {
         currentMode = GameMode.Combat;
-        
+        // Move camera to combat position and wait
+        if (cameraController != null)
+            yield return StartCoroutine(cameraController.MoveToCombatPosition());
+
         if (parallaxController != null)
         {
             parallaxController.MoveParallax(2f);
@@ -123,7 +129,15 @@ public class TurnManager : MonoBehaviour
     #region Pinball Mode
     private void StartPinballMode()
     {
+        StartCoroutine(PinballModeRoutine());
+    }
+
+    private IEnumerator PinballModeRoutine()
+    {
         currentMode = GameMode.Pinball;
+        // Move camera to pinball position and wait
+        if (cameraController != null)
+            yield return StartCoroutine(cameraController.MoveToPinballPosition());
         Debug.Log("[TurnManager] Pinball mode started (not yet implemented)");
         // TODO: Implement pinball gameplay here
         Debug.Log("[TurnManager] Pinball mode ended. Calculating currency...");
@@ -135,13 +149,20 @@ public class TurnManager : MonoBehaviour
  
     private void StartCardMode()
     {
+        StartCoroutine(CardModeRoutine());
+    }
+
+    private IEnumerator CardModeRoutine()
+    {
         currentMode = GameMode.CardSelect;
+        // Move camera to card select position and wait
+        if (cameraController != null)
+            yield return StartCoroutine(cameraController.MoveToCardSelectPosition());
         if (cardsManager != null)
         {
             cardsManager.OnCardSelectionEnded += OnCardSelectionEndedHandler;
             cardsManager.SpawnCards();
         }
-
     }
 
     private void OnCardSelectionEndedHandler()

@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6079542137035983808}
   - component: {fileID: 5905208935149051815}
+  - component: {fileID: 6028734651781487427}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -87,3 +88,22 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &6028734651781487427
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5530365651649642186}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85ae29e1c1b2620478663f4ed70da422, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _maxHP: 100
+  _currentHP: 100
+  _attackDamage: 20
+  _attackSpeed: 1
+  projectilePrefab: {fileID: 1619911037437406314, guid: 1d20680efe19fb24ca31f3008bf85f43, type: 3}
+  firePointOffset: {x: 0.32, y: 0.08}
+  behaviorPattern: 1

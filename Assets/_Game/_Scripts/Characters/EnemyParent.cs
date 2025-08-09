@@ -1,4 +1,5 @@
 using UnityEngine;
+using Zenject;
 
 public class EnemyParent : MonoBehaviour
 {
@@ -7,6 +8,7 @@ public class EnemyParent : MonoBehaviour
     [SerializeField] private int _currentHP = 100;
     [SerializeField] private int _attackDamage = 8;
     [SerializeField] private float _attackSpeed = 1.0f; // attacks per turn
+    [Inject]
     protected Player player;
 
     public int MaxHP { get => _maxHP; set => _maxHP = value; }
@@ -16,11 +18,24 @@ public class EnemyParent : MonoBehaviour
 
     // Event for death notification
     public event System.Action<EnemyParent> OnDeath;
+    // Event for notifying TurnManager when this enemy finishes all actions
+    public event System.Action<EnemyParent> OnFinishedActions;
+
+    public bool ReadyToAttack { get; protected set; } = true;
+    public bool FinishedActions { get; protected set; } = false;
 
     protected virtual void Start()
     {
         CurrentHP = MaxHP;
-        player = FindFirstObjectByType<Player>();
+        // player is injected by Zenject
+        if (player == null)
+        {
+            player = FindFirstObjectByType<Player>();
+            if (player == null)
+                Debug.LogWarning($"[EnemyParent] Player reference is still null on {gameObject.name}!");
+            else
+                Debug.Log($"[EnemyParent] Player reference found via FindFirstObjectByType on {gameObject.name}.");
+        }
     }
 
     // Used by TurnManager to process this enemy's turn
@@ -59,6 +74,26 @@ public class EnemyParent : MonoBehaviour
         CurrentHP += amount;
         if (CurrentHP > MaxHP)
             CurrentHP = MaxHP;
+    }
+
+    // Call this when the enemy is ready to attack (e.g. after move/animation)
+    public virtual void SetReadyToAttack()
+    {
+        ReadyToAttack = true;
+    }
+
+    // Call this when the enemy has finished all actions (e.g. after attack animation)
+    public virtual void SetFinishedActions()
+    {
+        FinishedActions = true;
+        OnFinishedActions?.Invoke(this);
+    }
+
+    // Call this to reset turn state at the start of a turn
+    public void ResetTurnState()
+    {
+        ReadyToAttack = false;
+        FinishedActions = false;
     }
 
     protected virtual void Die()

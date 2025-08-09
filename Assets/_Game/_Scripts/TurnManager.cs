@@ -100,7 +100,20 @@ public class TurnManager : MonoBehaviour
         if (player == null || player.CurrentHP <= 0)
             return;
         if (cannonManager != null)
+        {
+            cannonManager.OnReturnedToOriginalPosition += OnCannonReturned;
             StartCoroutine(cannonManager.CollectAllCurrencyToCannon());
+        }
+        else
+        {
+            StartPinballMode();
+        }
+    }
+
+    private void OnCannonReturned()
+    {
+        if (cannonManager != null)
+            cannonManager.OnReturnedToOriginalPosition -= OnCannonReturned;
         StartPinballMode();
     }
     #endregion

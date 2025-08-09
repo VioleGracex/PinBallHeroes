@@ -4,6 +4,7 @@ using TMPro;
 
 public class CannonManager : MonoBehaviour
 {
+    public event System.Action OnReturnedToOriginalPosition;
     [Header("Cannon Target Transform (where currency flies to)")]
     public Transform cannonMouth;
     [Header("Ammo Value")]
@@ -64,6 +65,8 @@ public class CannonManager : MonoBehaviour
         // Move cannon back to original position
         if (originalPosition.HasValue)
             yield return StartCoroutine(MoveToPosition(originalPosition.Value, moveSpeed));
+        // Notify listeners that cannon returned
+        OnReturnedToOriginalPosition?.Invoke();
     }
 
     private IEnumerator MoveToPosition(Vector3 target, float speed)

@@ -1,7 +1,7 @@
-    #region Fields
 using UnityEngine;
 using System.Collections;
 using NaughtyAttributes;
+using System.Collections.Generic;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -15,124 +15,16 @@ public class ParallaxController : MonoBehaviour
         [Tooltip("Prefab to spawn for this layer")]
         public GameObject tilePrefab;
         [HideInInspector]
-        public Transform[] tiles;
+        public Transform[] tiles; // One tile per collection
         public float parallaxSpeed = 0.5f;
     }
 
-    #endregion
-
-    #region Inspector Buttons & Spawning
-
-    [Button("Spawn Parallax Tiles")]
-    public void SpawnParallaxTiles()
-    {
-        if (!mainCamera) mainCamera = Camera.main;
-        float worldScreenWidth = 2f * mainCamera.orthographicSize * mainCamera.aspect;
-
-        // Destroy all old tiles and parents
-        foreach (var layer in layers)
-        {
-            if (layer.tiles != null)
-            {
-                foreach (var t in layer.tiles)
-                {
-                    if (t != null)
-                    {
-                        #if UNITY_EDITOR
-                        if (!Application.isPlaying)
-                            DestroyImmediate(t.gameObject);
-                        else
-                            Destroy(t.gameObject);
-                        #else
-                        Destroy(t.gameObject);
-                        #endif
-                    }
-                }
-            }
-            layer.tiles = null;
-        }
-        // Destroy old collection parents
-        var oldCollections = new System.Collections.Generic.List<GameObject>();
-        foreach (Transform child in transform)
-        {
-            if (child.name.StartsWith("ParallaxCollection_"))
-                oldCollections.Add(child.gameObject);
-        }
-        #if UNITY_EDITOR
-        foreach (var go in oldCollections)
-        {
-            if (!Application.isPlaying)
-                DestroyImmediate(go);
-            else
-                Destroy(go);
-        }
-        #else
-        foreach (var go in oldCollections)
-            Destroy(go);
-        #endif
-
-        // Get max prefab width (for spacing)
-        float maxPrefabWidth = 0f;
-        foreach (var layer in layers)
-        {
-            if (layer.tilePrefab == null) continue;
-            var sr = layer.tilePrefab.GetComponent<SpriteRenderer>();
-            if (!sr) continue;
-            float prefabWidth = sr.sprite.bounds.size.x * layer.tilePrefab.transform.localScale.x;
-            if (prefabWidth > maxPrefabWidth) maxPrefabWidth = prefabWidth;
-        }
-        if (maxPrefabWidth == 0f) return;
-
-        // How many collections needed to fill screen + 1 extra
-        int needed = Mathf.Max(2, Mathf.CeilToInt(worldScreenWidth / maxPrefabWidth) + 1);
-
-        // Each collection contains one tile from each layer
-        for (int i = 0; i < needed; i++)
-        {
-            GameObject collection = new GameObject($"ParallaxCollection_{i}");
-            collection.transform.SetParent(this.transform);
-            float x = mainCamera.transform.position.x - worldScreenWidth / 2f + maxPrefabWidth * i + maxPrefabWidth / 2f;
-            // For each layer, spawn one tile in this collection
-            for (int l = 0; l < layers.Length; l++)
-            {
-                var layer = layers[l];
-                if (layer.tilePrefab == null) continue;
-                GameObject go = null;
-                #if UNITY_EDITOR
-                if (!Application.isPlaying)
-                    go = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(layer.tilePrefab);
-                else
-                    go = Instantiate(layer.tilePrefab);
-                #else
-                go = Instantiate(layer.tilePrefab);
-                #endif
-                go.name = layer.tilePrefab.name + "_Tile_" + i;
-                go.transform.SetParent(collection.transform);
-                // Place horizontally at x, keep y/z from prefab
-                Vector3 pos = go.transform.position;
-                pos.x = x;
-                go.transform.position = pos;
-                // Track tiles for each layer
-                if (layer.tiles == null)
-                {
-                    layer.tiles = new Transform[needed];
-                }
-                layer.tiles[i] = go.transform;
-            }
-        }
-        // After spawning, adapt and align
-        AdaptTilesToScreen();
-    }
-
-    #endregion
-
-    #region Fields (Serialized)
     [Header("Background (fills camera)")]
-    public Transform background; // Assign a Transform with a SpriteRenderer
-    float backgroundDepth = 10f; // Z position for background
+    public Transform background;
+    public float backgroundDepth = 10f;
 
     [Header("Scaling")]
-    public bool keepAspect = true; // If true, keep aspect ratio for ALL layers and background
+    public bool keepAspect = true;
 
     [Header("Parallax Layers")]
     public ParallaxLayer[] layers;
@@ -142,21 +34,95 @@ public class ParallaxController : MonoBehaviour
 
     [Header("Top Area Percentage")]
     [Range(0f, 1f)]
-    public float topAreaPercent = 0.46f; // 46% of the screen from the top
+    public float topAreaPercent = 0.46f;
 
     [Header("Left Offset (World Units)")]
-    public float leftOffset = -5.0f; // How much to move all tiles/background to the left from the camera's left edge
-    #endregion
+    public float leftOffset = -5.0f;
 
-    #region Unity Methods
-    void Start()
+    [HideInInspector]
+    public GameObject[] collections; // Each collection holds one tile from each layer
+
+    [Button("Spawn Parallax Tiles")]
+    public void SpawnParallaxTiles()
     {
-        SpawnParallaxTiles();
-        AdaptBackgroundToScreen();
-    }
-    #endregion
+        if (!mainCamera) mainCamera = Camera.main;
+        float worldScreenWidth = 2f * mainCamera.orthographicSize * mainCamera.aspect;
 
-    #region Adapt & Align
+        // Destroy old collections (and their children)
+        if (collections != null)
+        {
+            foreach (var col in collections)
+            {
+                if (col != null)
+                {
+#if UNITY_EDITOR
+                    if (!Application.isPlaying)
+                        DestroyImmediate(col);
+                    else
+                        Destroy(col);
+#else
+                    Destroy(col);
+#endif
+                }
+            }
+        }
+        collections = null;
+
+        // Determine max tile width for spacing collections (the widest prefab among all layers)
+        float maxTileWidth = 0f;
+        foreach (var layer in layers)
+        {
+            if (layer.tilePrefab == null) continue;
+            var sr = layer.tilePrefab.GetComponent<SpriteRenderer>();
+            if (!sr) continue;
+            float prefabWidth = sr.sprite.bounds.size.x * layer.tilePrefab.transform.localScale.x;
+            if (prefabWidth > maxTileWidth) maxTileWidth = prefabWidth;
+        }
+        if (maxTileWidth == 0f) return;
+
+        // Calculate number of needed collections to fill the screen + 2 for seamlessness
+        int needed = Mathf.Max(2, Mathf.CeilToInt(worldScreenWidth / maxTileWidth) + 2);
+
+        collections = new GameObject[needed];
+        foreach (var layer in layers)
+        {
+            layer.tiles = new Transform[needed];
+        }
+
+        for (int i = 0; i < needed; i++)
+        {
+            GameObject collection = new GameObject($"ParallaxCollection_{i}");
+            collection.transform.SetParent(this.transform);
+            float x = mainCamera.transform.position.x - worldScreenWidth / 2f + maxTileWidth * i + maxTileWidth / 2f + leftOffset;
+            Vector3 basePos = new Vector3(x, 0f, 0f);
+
+            // For each layer, spawn one tile as a child of this collection
+            for (int l = 0; l < layers.Length; l++)
+            {
+                var layer = layers[l];
+                if (layer.tilePrefab == null) continue;
+                GameObject go = null;
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                    go = (GameObject)PrefabUtility.InstantiatePrefab(layer.tilePrefab);
+                else
+                    go = Instantiate(layer.tilePrefab);
+#else
+                go = Instantiate(layer.tilePrefab);
+#endif
+                go.name = layer.tilePrefab.name + "_Tile_" + i;
+                go.transform.SetParent(collection.transform);
+
+                // Place horizontally at x, keep y/z from prefab
+                Vector3 pos = go.transform.position;
+                pos.x = x;
+                go.transform.position = pos;
+                layer.tiles[i] = go.transform;
+            }
+            collections[i] = collection;
+        }
+        AdaptTilesToScreen();
+    }
 
     [Button("Adapt Background & Tiles To Screen")]
     public void AdaptAllToScreen()
@@ -197,7 +163,7 @@ public class ParallaxController : MonoBehaviour
         Vector3 bgPos = mainCamera.transform.position;
         bgPos.z = backgroundDepth;
         bgPos.y = mainCamera.transform.position.y;
-        bgPos.x = mainCamera.transform.position.x; // Always center horizontally
+        bgPos.x = mainCamera.transform.position.x;
         background.position = bgPos;
     }
 
@@ -207,11 +173,13 @@ public class ParallaxController : MonoBehaviour
         if (!mainCamera) mainCamera = Camera.main;
         float worldScreenWidth = 2f * mainCamera.orthographicSize * mainCamera.aspect;
         float worldScreenHeight = 2f * mainCamera.orthographicSize;
-
         float layerTargetHeight = worldScreenHeight * topAreaPercent;
 
-        foreach (var layer in layers)
+        for (int l = 0; l < layers.Length; l++)
         {
+            var layer = layers[l];
+            if (layer.tiles == null) continue;
+
             for (int i = 0; i < layer.tiles.Length; i++)
             {
                 var tile = layer.tiles[i];
@@ -228,7 +196,6 @@ public class ParallaxController : MonoBehaviour
 
                 if (keepAspect)
                 {
-                    // Only use height scaling for both axes, so tile never exceeds the target height
                     float scale = scaleY;
                     tile.localScale = new Vector3(scale, scale, tile.localScale.z);
                 }
@@ -237,31 +204,22 @@ public class ParallaxController : MonoBehaviour
                     tile.localScale = new Vector3(scaleX, scaleY, tile.localScale.z);
                 }
 
-                // Position the tile so its top edge aligns with the top edge of the camera view
+                // Position tile so its top edge aligns with camera top
                 float tileWorldHeight = sr.bounds.size.y * tile.localScale.y;
                 float cameraTopY = mainCamera.transform.position.y + worldScreenHeight / 2f;
                 float tileTopY = tile.position.y + tileWorldHeight / 2f;
                 float deltaY = cameraTopY - tileTopY;
                 tile.position += new Vector3(0, deltaY, 0);
             }
-
-            // Position tiles side by side
-            if (layer.tiles.Length == 2 && layer.tiles[0] && layer.tiles[1])
-            {
-                SpriteRenderer sr0 = layer.tiles[0].GetComponent<SpriteRenderer>();
-                float width = sr0.bounds.size.x * layer.tiles[0].localScale.x;
-                Vector3 basePos = layer.tiles[0].position;
-                layer.tiles[1].position = new Vector3(basePos.x + width, basePos.y, basePos.z);
-            }
         }
     }
 
-    #endregion
+    void Start()
+    {
+        SpawnParallaxTiles();
+        AdaptBackgroundToScreen();
+    }
 
-    // No longer needed: background is always centered, collections are placed by spawner
-
-
-    #region Parallax Logic
     public void MoveParallax(float duration = 2f)
     {
         if (parallaxCoroutine != null)
@@ -273,48 +231,53 @@ public class ParallaxController : MonoBehaviour
     {
         float timer = 0f;
         if (!mainCamera) mainCamera = Camera.main;
+        float worldScreenWidth = 2f * mainCamera.orthographicSize * mainCamera.aspect;
+
+        // Determine max tile width for wrapping
+        float maxTileWidth = 0f;
+        foreach (var layer in layers)
+        {
+            if (layer.tilePrefab == null) continue;
+            var sr = layer.tilePrefab.GetComponent<SpriteRenderer>();
+            if (!sr) continue;
+            float prefabWidth = sr.sprite.bounds.size.x * layer.tilePrefab.transform.localScale.x;
+            if (prefabWidth > maxTileWidth) maxTileWidth = prefabWidth;
+        }
 
         while (timer < duration)
         {
-            foreach (var layer in layers)
+            for (int i = 0; i < collections.Length; i++)
             {
-                foreach (var tile in layer.tiles)
-                {
-                    if (tile != null)
-                    {
-                        Vector3 pos = tile.position;
-                        pos.x -= layer.parallaxSpeed * scrollSpeed * Time.deltaTime;
-                        tile.position = pos;
-                    }
-                }
-                // Wrapping logic: assumes tiles[0] and tiles[1] are horizontally aligned, same width
-                if (layer.tiles.Length == 2 && layer.tiles[0] && layer.tiles[1])
-                {
-                    SpriteRenderer sr0 = layer.tiles[0].GetComponent<SpriteRenderer>();
-                    float tileWidth = sr0.bounds.size.x * layer.tiles[0].localScale.x;
+                var collection = collections[i];
+                if (!collection) continue;
+                Vector3 pos = collection.transform.position;
+                pos.x -= scrollSpeed * Time.deltaTime;
+                collection.transform.position = pos;
+            }
 
-                    for (int i = 0; i < layer.tiles.Length; i++)
-                    {
-                        Transform tile = layer.tiles[i];
-                        Transform other = layer.tiles[(i + 1) % layer.tiles.Length];
+            // Wrapping logic for collections
+            for (int i = 0; i < collections.Length; i++)
+            {
+                var collection = collections[i];
+                if (!collection) continue;
+                float leftEdge = mainCamera.transform.position.x - worldScreenWidth / 2f - maxTileWidth / 2f;
 
-                        // If tile fully left of the camera, move it to the right of the other tile
-                        if (tile.position.x < mainCamera.transform.position.x - tileWidth)
-                        {
-                            tile.position = new Vector3(
-                                other.position.x + tileWidth,
-                                tile.position.y,
-                                tile.position.z
-                            );
-                        }
+                if (collection.transform.position.x < leftEdge)
+                {
+                    // Find rightmost collection
+                    float maxX = float.MinValue;
+                    for (int j = 0; j < collections.Length; j++)
+                    {
+                        if (collections[j] && collections[j].transform.position.x > maxX)
+                            maxX = collections[j].transform.position.x;
                     }
+                    collection.transform.position = new Vector3(maxX + maxTileWidth, collection.transform.position.y, collection.transform.position.z);
                 }
             }
             timer += Time.deltaTime;
             yield return null;
         }
     }
-    #endregion
 
     [Button("Simulate Parallax (2s)")]
     public void SimulateParallax()
@@ -324,12 +287,10 @@ public class ParallaxController : MonoBehaviour
     }
 
 #if UNITY_EDITOR
-    // So inspector buttons work in edit mode
     private void OnValidate()
     {
         if (!Application.isPlaying)
         {
-            // Only run on inspector changes, not at runtime
             if (mainCamera == null) mainCamera = Camera.main;
         }
     }

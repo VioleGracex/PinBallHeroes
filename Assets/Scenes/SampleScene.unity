@@ -1711,32 +1711,41 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   background: {fileID: 1522039876}
+  backgroundDepth: 10
   keepAspect: 1
   layers:
   - tilePrefab: {fileID: 3050217064940771808, guid: 98f37a41dd08a894da4919bf8c517bf8, type: 3}
     tiles:
     - {fileID: 0}
     - {fileID: 0}
-    parallaxSpeed: 0.1
+    - {fileID: 0}
+    parallaxSpeed: 4.4
   - tilePrefab: {fileID: 4726489511232739594, guid: adbc55790934dab448de52534ce3789e, type: 3}
     tiles:
     - {fileID: 0}
     - {fileID: 0}
-    parallaxSpeed: 0.2
+    - {fileID: 0}
+    parallaxSpeed: 4.6
   - tilePrefab: {fileID: 6151907682752101301, guid: 16de959e86fead249becdea975597bca, type: 3}
     tiles:
     - {fileID: 0}
     - {fileID: 0}
-    parallaxSpeed: 0.2
+    - {fileID: 0}
+    parallaxSpeed: 4.8
   - tilePrefab: {fileID: 7963514151631979990, guid: 30340e5f780b4c541bc7c3f939e5a0e6, type: 3}
     tiles:
     - {fileID: 0}
     - {fileID: 0}
-    parallaxSpeed: 0.3
-  scrollSpeed: 2
+    - {fileID: 0}
+    parallaxSpeed: 5
+  scrollSpeed: 3
   mainCamera: {fileID: 519420031}
   topAreaPercent: 0.44
   leftOffset: -5
+  collections:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
 --- !u!1 &1716447536
 GameObject:
   m_ObjectHideFlags: 0

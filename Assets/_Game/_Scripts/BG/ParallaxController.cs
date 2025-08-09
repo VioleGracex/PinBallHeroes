@@ -15,7 +15,7 @@ public class ParallaxController : MonoBehaviour
         [Tooltip("Prefab to spawn for this layer")]
         public GameObject tilePrefab;
         [HideInInspector]
-        public Transform[] tiles; // One tile per collection
+        public Transform[] tiles; // Tiles for this layer
         public float parallaxSpeed = 0.5f;
     }
 
@@ -39,68 +39,49 @@ public class ParallaxController : MonoBehaviour
     [Header("Left Offset (World Units)")]
     public float leftOffset = -5.0f;
 
-    [HideInInspector]
-    public GameObject[] collections; // Each collection holds one tile from each layer
-
     [Button("Spawn Parallax Tiles")]
     public void SpawnParallaxTiles()
     {
         if (!mainCamera) mainCamera = Camera.main;
         float worldScreenWidth = 2f * mainCamera.orthographicSize * mainCamera.aspect;
 
-        // Destroy old collections (and their children)
-        if (collections != null)
+        // Destroy old tiles/children
+        foreach (var layer in layers)
         {
-            foreach (var col in collections)
+            if (layer.tiles != null)
             {
-                if (col != null)
+                foreach (var t in layer.tiles)
                 {
+                    if (t != null)
+                    {
 #if UNITY_EDITOR
-                    if (!Application.isPlaying)
-                        DestroyImmediate(col);
-                    else
-                        Destroy(col);
+                        if (!Application.isPlaying)
+                            DestroyImmediate(t.gameObject);
+                        else
+                            Destroy(t.gameObject);
 #else
-                    Destroy(col);
+                        Destroy(t.gameObject);
 #endif
+                    }
                 }
             }
+            layer.tiles = null;
         }
-        collections = null;
 
-        // Determine max tile width for spacing collections (the widest prefab among all layers)
-        float maxTileWidth = 0f;
-        foreach (var layer in layers)
+        for (int l = 0; l < layers.Length; l++)
         {
+            var layer = layers[l];
             if (layer.tilePrefab == null) continue;
+
             var sr = layer.tilePrefab.GetComponent<SpriteRenderer>();
-            if (!sr) continue;
             float prefabWidth = sr.sprite.bounds.size.x * layer.tilePrefab.transform.localScale.x;
-            if (prefabWidth > maxTileWidth) maxTileWidth = prefabWidth;
-        }
-        if (maxTileWidth == 0f) return;
 
-        // Calculate number of needed collections to fill the screen + 2 for seamlessness
-        int needed = Mathf.Max(2, Mathf.CeilToInt(worldScreenWidth / maxTileWidth) + 2);
-
-        collections = new GameObject[needed];
-        foreach (var layer in layers)
-        {
+            // Calculate needed tiles (+3 for seamless)
+            int needed = Mathf.Max(3, Mathf.CeilToInt(worldScreenWidth / prefabWidth) + 2);
             layer.tiles = new Transform[needed];
-        }
 
-        for (int i = 0; i < needed; i++)
-        {
-            GameObject collection = new GameObject($"ParallaxCollection_{i}");
-            collection.transform.SetParent(this.transform);
-            float x = mainCamera.transform.position.x - worldScreenWidth / 2f + maxTileWidth * i + maxTileWidth / 2f + leftOffset;
-            Vector3 basePos = new Vector3(x, 0f, 0f);
-
-            // For each layer, spawn one tile as a child of this collection
-            for (int l = 0; l < layers.Length; l++)
+            for (int i = 0; i < needed; i++)
             {
-                var layer = layers[l];
-                if (layer.tilePrefab == null) continue;
                 GameObject go = null;
 #if UNITY_EDITOR
                 if (!Application.isPlaying)
@@ -111,15 +92,14 @@ public class ParallaxController : MonoBehaviour
                 go = Instantiate(layer.tilePrefab);
 #endif
                 go.name = layer.tilePrefab.name + "_Tile_" + i;
-                go.transform.SetParent(collection.transform);
+                go.transform.SetParent(this.transform);
 
-                // Place horizontally at x, keep y/z from prefab
+                float x = mainCamera.transform.position.x - worldScreenWidth / 2f + prefabWidth * i + prefabWidth / 2f + leftOffset;
                 Vector3 pos = go.transform.position;
                 pos.x = x;
                 go.transform.position = pos;
                 layer.tiles[i] = go.transform;
             }
-            collections[i] = collection;
         }
         AdaptTilesToScreen();
     }
@@ -227,51 +207,54 @@ public class ParallaxController : MonoBehaviour
         parallaxCoroutine = StartCoroutine(ParallaxRoutine(duration));
     }
 
+    // The corrected parallax routine: moves and wraps per-layer, honoring both scrollSpeed and parallaxSpeed
     private IEnumerator ParallaxRoutine(float duration)
     {
         float timer = 0f;
         if (!mainCamera) mainCamera = Camera.main;
         float worldScreenWidth = 2f * mainCamera.orthographicSize * mainCamera.aspect;
 
-        // Determine max tile width for wrapping
-        float maxTileWidth = 0f;
-        foreach (var layer in layers)
-        {
-            if (layer.tilePrefab == null) continue;
-            var sr = layer.tilePrefab.GetComponent<SpriteRenderer>();
-            if (!sr) continue;
-            float prefabWidth = sr.sprite.bounds.size.x * layer.tilePrefab.transform.localScale.x;
-            if (prefabWidth > maxTileWidth) maxTileWidth = prefabWidth;
-        }
-
         while (timer < duration)
         {
-            for (int i = 0; i < collections.Length; i++)
+            for (int l = 0; l < layers.Length; l++)
             {
-                var collection = collections[i];
-                if (!collection) continue;
-                Vector3 pos = collection.transform.position;
-                pos.x -= scrollSpeed * Time.deltaTime;
-                collection.transform.position = pos;
-            }
+                var layer = layers[l];
+                if (layer.tiles == null) continue;
+                if (layer.tilePrefab == null) continue;
 
-            // Wrapping logic for collections
-            for (int i = 0; i < collections.Length; i++)
-            {
-                var collection = collections[i];
-                if (!collection) continue;
-                float leftEdge = mainCamera.transform.position.x - worldScreenWidth / 2f - maxTileWidth / 2f;
+                var sr = layer.tilePrefab.GetComponent<SpriteRenderer>();
+                float tileWidth = sr.sprite.bounds.size.x * layer.tilePrefab.transform.localScale.x;
 
-                if (collection.transform.position.x < leftEdge)
+                // Move tiles
+                for (int i = 0; i < layer.tiles.Length; i++)
                 {
-                    // Find rightmost collection
-                    float maxX = float.MinValue;
-                    for (int j = 0; j < collections.Length; j++)
+                    var tile = layer.tiles[i];
+                    if (!tile) continue;
+                    Vector3 pos = tile.position;
+                    pos.x -= scrollSpeed * layer.parallaxSpeed * Time.deltaTime;
+                    tile.position = pos;
+                }
+
+                // Wrap tiles for this layer (account for overshoot)
+                for (int i = 0; i < layer.tiles.Length; i++)
+                {
+                    var tile = layer.tiles[i];
+                    if (!tile) continue;
+                    float leftEdge = mainCamera.transform.position.x - worldScreenWidth / 2f - tileWidth / 2f;
+
+                    if (tile.position.x < leftEdge)
                     {
-                        if (collections[j] && collections[j].transform.position.x > maxX)
-                            maxX = collections[j].transform.position.x;
+                        // Find rightmost tile in this layer
+                        float maxX = float.MinValue;
+                        for (int j = 0; j < layer.tiles.Length; j++)
+                        {
+                            if (layer.tiles[j] && layer.tiles[j].position.x > maxX)
+                                maxX = layer.tiles[j].position.x;
+                        }
+
+                        float overshoot = leftEdge - tile.position.x;
+                        tile.position = new Vector3(maxX + tileWidth - overshoot, tile.position.y, tile.position.z);
                     }
-                    collection.transform.position = new Vector3(maxX + maxTileWidth, collection.transform.position.y, collection.transform.position.z);
                 }
             }
             timer += Time.deltaTime;

@@ -3,33 +3,27 @@ using System.Collections;
 using System.Linq;
 using System.Collections.Generic;
 
+/// <summary>
+/// Player class with encapsulated stats and public stat-changing methods.
+/// </summary>
 public class Player : MonoBehaviour
 {
     [Header("Currency")]
     [Tooltip("Chance (0-1) to drop currency on attack (e.g. 0.2 for 20%)")]
-    [Range(0f,1f)]
+    [Range(0f, 1f)]
     public float currencyDropChance = 0.2f;
+
     [SerializeField] private int _maxHP = 100;
     [SerializeField] private int _currentHP = 100;
     [SerializeField] private int _attackDamage = 10;
     [SerializeField] private float _attackSpeed = 1.0f; // Attacks per turn
     [SerializeField] private int _armor = 0;
 
-    public int MaxHP { get => _maxHP; set => _maxHP = value; }
-    public int CurrentHP { get => _currentHP; set => _currentHP = value; }
-
-    public void UpdateHealthBar()
-    {
-        if (CurrentHP > MaxHP)
-                CurrentHP = MaxHP;
-        if (healthBarUI != null)
-        {
-            healthBarUI.SetHP(_currentHP, _maxHP);
-        }
-    }
-    public int AttackDamage { get => _attackDamage; set => _attackDamage = value; }
-    public float AttackSpeed { get => _attackSpeed; set => _attackSpeed = value; }
-    public int Armor { get => _armor; set => _armor = value; }
+    public int MaxHP => _maxHP;
+    public int CurrentHP => _currentHP;
+    public int AttackDamage => _attackDamage;
+    public float AttackSpeed => _attackSpeed;
+    public int Armor => _armor;
 
     [Header("Projectile Settings")]
     public GameObject projectilePrefab;
@@ -55,11 +49,10 @@ public class Player : MonoBehaviour
     {
         _currentHP = _maxHP;
         readyToPlayTurn = false;
-            // Ensure HealthBarUI is updated at start
-            if (healthBarUI != null)
-            {
-                healthBarUI.SetHP(_currentHP, _maxHP);
-            }
+        if (healthBarUI != null)
+        {
+            healthBarUI.SetHP(_currentHP, _maxHP);
+        }
         if (!_hasSpawned)
         {
             Vector3 target = transform.position + Vector3.right * 22f;
@@ -70,33 +63,46 @@ public class Player : MonoBehaviour
         readyToPlayTurn = true;
     }
 
-    // Returns how many attacks the player can do this turn
-    public int GetAttacksPerTurn()
+    #region Stat Methods
+    public void IncreaseMaxHP(int amount)
     {
-        return Mathf.FloorToInt(_attackSpeed);
+        _maxHP += amount;
+        _currentHP += amount;
+        if (_currentHP > _maxHP) _currentHP = _maxHP;
+        UpdateHealthBar();
     }
 
-    // Call this for each attack (from turn logic)
-    public void Attack(EnemyParent target)
-    {
-        if (target != null && projectilePrefab != null)
-        {
-            Vector3 firePoint = transform.position + (Vector3)firePointOffset;
-            StartCoroutine(ShootProjectileAtTarget(target, false, firePoint));
-        }
-        else if (target != null)
-        {
-            // fallback: instant damage
-            target.TakeDamage(_attackDamage);
-        }
+    public void IncreaseAttackDamage(int amount) => _attackDamage += amount;
+    public void IncreaseAttackSpeed(float amount) => _attackSpeed += amount;
+    public void IncreaseArmor(int amount) => _armor += amount;
+    public void IncreaseCurrencyDropChance(float amount) => currencyDropChance += amount;
 
-        // Currency drop chance on attack
-        if (target != null && Random.value < currencyDropChance)
+    public void MultiplyMaxHP(int multiplier)
+    {
+        _maxHP *= multiplier;
+        _currentHP *= multiplier;
+        UpdateHealthBar();
+    }
+
+    public void MultiplyAttackDamage(int multiplier) => _attackDamage *= multiplier;
+    public void MultiplyAttackSpeed(float multiplier) => _attackSpeed *= multiplier;
+    public void MultiplyArmor(int multiplier) => _armor *= multiplier;
+    public void MultiplyCurrencyDropChance(float multiplier) => currencyDropChance *= multiplier;
+
+    public int GetMaxHP() => _maxHP;
+    public int GetCurrentHP() => _currentHP;
+    public int GetAttackDamage() => _attackDamage;
+    public float GetAttackSpeed() => _attackSpeed;
+    public int GetArmor() => _armor;
+    public float GetCurrencyDropChance() => currencyDropChance;
+    #endregion
+
+    public void UpdateHealthBar()
+    {
+        if (healthBarUI != null)
         {
-            // Drop currency at target position (arc drop behind enemy)
-            // Animation and pooling logic to be implemented
-            Debug.Log($"[Player] Currency dropped on attack at {target.transform.position} (Chance: {currencyDropChance*100})");
-           target.SpawnCurrencyOnDamage();
+            Debug.Log($"[Player] Updating health bar: Current HP = {_currentHP}, Max HP = {_maxHP}");
+            healthBarUI.SetHP(_currentHP, _maxHP);
         }
     }
 
@@ -133,10 +139,36 @@ public class Player : MonoBehaviour
         // Add defeat logic
     }
 
+    // Returns how many attacks the player can do this turn
+    public int GetAttacksPerTurn()
+    {
+        return Mathf.FloorToInt(_attackSpeed);
+    }
+
+    public void Attack(EnemyParent target)
+    {
+        if (target != null && projectilePrefab != null)
+        {
+            Vector3 firePoint = transform.position + (Vector3)firePointOffset;
+            StartCoroutine(ShootProjectileAtTarget(target, false, firePoint));
+        }
+        else if (target != null)
+        {
+            // fallback: instant damage
+            target.TakeDamage(_attackDamage);
+        }
+
+        // Currency drop chance on attack
+        if (target != null && Random.value < currencyDropChance)
+        {
+            Debug.Log($"[Player] Currency dropped on attack at {target.transform.position} (Chance: {currencyDropChance * 100})");
+            target.SpawnCurrencyOnDamage();
+        }
+    }
+
     // Called by TurnManager to start the player's turn
     public IEnumerator PlayTurn(List<EnemyParent> enemies)
     {
-        // Wait until ready to play turn (e.g. entrance animation finished)
         while (!readyToPlayTurn)
             yield return null;
         if (enemies == null || enemies.Count == 0 || enemies.All(e => e == null))
@@ -155,7 +187,7 @@ public class Player : MonoBehaviour
                 {
                     Debug.Log($"[Player] behaviorPattern == 1 Attacking {target.gameObject.name} (HP: {target.CurrentHP}) with projectile.");
                     if (!_originalPosition.HasValue) _originalPosition = transform.position;
-                    Vector3 backPos = transform.position + Vector3.left *  4f;
+                    Vector3 backPos = transform.position + Vector3.left * 4f;
                     yield return StartCoroutine(MoveToPosition(backPos, 0.01f));
                     Debug.Log($"[Player] Shooting projectile at {target.gameObject.name} from {_originalPosition.Value}.");
                     bool arc = target.transform.position.y > transform.position.y;

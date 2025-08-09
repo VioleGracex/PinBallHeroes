@@ -1,40 +1,22 @@
 using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
-
 using System;
+using Zenject;
 
+/// <summary>
+/// CardsManager -- uses Player API to change stats with encapsulation.
+/// </summary>
 public class CardsManager : MonoBehaviour
 {
-#region Fields
+    #region Fields
     [Header("Card Window UI")]
     public GameObject cardWindow; // Assign in inspector
+    [Inject]
     private Player player;
 
     private List<CardData> freeCards = new List<CardData>();
     private List<CardData> nonFreeCards = new List<CardData>();
-
-
-#endregion
-
-#region Unity Methods
-    private void Awake()
-    {
-        if (player == null)
-            player = FindFirstObjectByType<Player>();
-
-        UpdateCardTypeLists();
-    }
-#endregion
-
-
-#region Currency
-    public void SpendPinballs(int amount)
-    {
-        CurrencyManager.Instance.SpendPinballs(amount);
-    }
-#endregion
-
 
     public GameObject cardPrefab;
     public Transform cardParent; // Parent with HorizontalLayoutGroup
@@ -44,16 +26,29 @@ public class CardsManager : MonoBehaviour
     private int selectedCardIndex = -1;
 
     public event Action OnCardSelectionEnded;
+    #endregion
 
+    #region Unity Methods
+    private void Awake()
+    {
+        UpdateCardTypeLists();
+    }
+    #endregion
 
-#region Card Spawning
+    #region Currency
+    public void SpendPinballs(int amount)
+    {
+        CurrencyManager.Instance.SpendPinballs(amount);
+    }
+    #endregion
+
+    #region Card Spawning
     public void SpawnCards()
     {
         selectedCardIndex = -1;
         if (cardWindow != null)
         {
             cardWindow.SetActive(true);
-            // Animate card window scale from 0.7 to 1 with easeOutBack
             cardWindow.transform.localScale = Vector3.one * 0.7f;
             cardWindow.transform.DOScale(1f, 0.4f).SetEase(Ease.OutBack);
         }
@@ -120,7 +115,7 @@ public class CardsManager : MonoBehaviour
             if (data.effectIcon != null)
                 card.SetEffectIcon(data.effectIcon);
             card.ShowFront(false); // start face-down
-            card.SetCardInfo(data.name, data.description, data.costInPinballs);
+            card.SetCardInfo(data.cardName, data.description, data.costInPinballs);
             float delay = 0.5f + 0.3f * i;
             DOVirtual.DelayedCall(delay, card.FlipCard);
 
@@ -143,11 +138,9 @@ public class CardsManager : MonoBehaviour
                 spawnedCards[i].gameObject.SetActive(false);
         }
     }
-#endregion
+    #endregion
 
-
-#region Card Pool Helpers
-    // Call this to update free/non-free lists if cardPool changes
+    #region Card Pool Helpers
     private void UpdateCardTypeLists()
     {
         freeCards.Clear();
@@ -160,14 +153,21 @@ public class CardsManager : MonoBehaviour
                 nonFreeCards.Add(c);
         }
     }
-#endregion
+    #endregion
 
-
-#region Card Selection
+    #region Card Selection
     private void OnCardClicked(int cardIdx, CardData data)
     {
+        if (player == null)
+            player = FindFirstObjectByType<Player>();
+        if (data == null)
+        {
+            Debug.LogWarning("[CardsManager] Card data is null.");
+            return;
+        }
         if (selectedCardIndex != -1) return; // Only allow one selection
         selectedCardIndex = cardIdx;
+        Debug.Log($"[CardsManager] Card clicked: {data.cardName} (Upgrade: {data.effectType}, Stat: {data.statAffected}, Amount: {data.amount}, Cost: {data.costInPinballs})");
         ApplyCardEffect(data);
         // Optionally: visually highlight the selected card, disable others, etc.
         for (int i = 0; i < spawnedCards.Count; i++)
@@ -176,60 +176,58 @@ public class CardsManager : MonoBehaviour
             if (i != cardIdx && btn != null)
                 btn.interactable = false;
         }
-        Debug.Log($"Card {cardIdx} selected: {data.cardName}");
-        // Notify listeners that card selection has ended
+        Debug.Log($"[CardsManager] Card {cardIdx} selected: {data.cardName}");
         OnCardSelectionEnded?.Invoke();
-        // Hide card window after selection
         if (cardWindow != null)
             cardWindow.SetActive(false);
     }
-#endregion
+    #endregion
 
-
-#region Card Effects
+    #region Card Effects
     public void ApplyCardEffect(CardData card)
     {
-        if (player == null || card == null) return;
+       
         int amount = card.amount;
+        string upgradeMsg = "";
         switch (card.effectType)
         {
             case CardData.EffectType.FlatIncrease:
                 AddPlayerStat(card.statAffected, amount);
+                upgradeMsg = $"FlatIncrease: +{amount} to {card.statAffected}";
                 break;
             case CardData.EffectType.Multiplier:
                 MultiplyPlayerStat(card.statAffected, amount);
+                upgradeMsg = $"Multiplier: x{amount} to {card.statAffected}";
                 break;
             case CardData.EffectType.Percentage:
-                AddPlayerStat(card.statAffected, Mathf.RoundToInt(GetPlayerStat(card.statAffected) * (amount / 100f)));
+                int add = Mathf.RoundToInt(GetPlayerStat(card.statAffected) * (amount / 100f));
+                AddPlayerStat(card.statAffected, add);
+                upgradeMsg = $"Percentage: +{amount}% ({add}) to {card.statAffected}";
                 break;
         }
+        Debug.Log($"[CardsManager] Upgrade applied: {upgradeMsg} (Card: {card.cardName})");
     }
 
-#region Stat Helpers
     private void AddPlayerStat(PlayerStats.StatType stat, int amount)
     {
         switch (stat)
         {
             case PlayerStats.StatType.HP:
-                player.MaxHP += amount;
-                player.CurrentHP += amount;
-                player.UpdateHealthBar();
+                player.IncreaseMaxHP(amount);
                 break;
             case PlayerStats.StatType.Attack:
-                player.AttackDamage += amount;
+                player.IncreaseAttackDamage(amount);
                 break;
             case PlayerStats.StatType.AttackSpeed:
-                player.AttackSpeed += amount;
+                player.IncreaseAttackSpeed(amount);
                 break;
             case PlayerStats.StatType.Defense:
-                player.Armor += amount;
-                break;
-            case PlayerStats.StatType.CritChance:
-                // Add crit chance logic if present
+                player.IncreaseArmor(amount);
                 break;
             case PlayerStats.StatType.CurrencyDropChance:
-                player.currencyDropChance += amount / 100f;
+                player.IncreaseCurrencyDropChance(amount / 100f);
                 break;
+            // Add more if needed
         }
     }
 
@@ -238,24 +236,21 @@ public class CardsManager : MonoBehaviour
         switch (stat)
         {
             case PlayerStats.StatType.HP:
-                player.MaxHP *= multiplier;
-                player.CurrentHP *= multiplier;
+                player.MultiplyMaxHP(multiplier);
                 break;
             case PlayerStats.StatType.Attack:
-                player.AttackDamage *= multiplier;
+                player.MultiplyAttackDamage(multiplier);
                 break;
             case PlayerStats.StatType.AttackSpeed:
-                player.AttackSpeed *= multiplier;
+                player.MultiplyAttackSpeed(multiplier);
                 break;
             case PlayerStats.StatType.Defense:
-                player.Armor *= multiplier;
-                break;
-            case PlayerStats.StatType.CritChance:
-                // Add crit chance logic if present
+                player.MultiplyArmor(multiplier);
                 break;
             case PlayerStats.StatType.CurrencyDropChance:
-                player.currencyDropChance *= multiplier;
+                player.MultiplyCurrencyDropChance(multiplier);
                 break;
+            // Add more if needed
         }
     }
 
@@ -264,22 +259,18 @@ public class CardsManager : MonoBehaviour
         switch (stat)
         {
             case PlayerStats.StatType.HP:
-                return player.MaxHP;
+                return player.GetMaxHP();
             case PlayerStats.StatType.Attack:
-                return player.AttackDamage;
+                return player.GetAttackDamage();
             case PlayerStats.StatType.AttackSpeed:
-                return player.AttackSpeed;
+                return player.GetAttackSpeed();
             case PlayerStats.StatType.Defense:
-                return player.Armor;
-            case PlayerStats.StatType.CritChance:
-                // Add crit chance logic if present
-                return 0f;
+                return player.GetArmor();
             case PlayerStats.StatType.CurrencyDropChance:
-                return player.currencyDropChance;
+                return player.GetCurrencyDropChance();
             default:
                 return 0f;
         }
     }
-#endregion
-#endregion
+    #endregion
 }

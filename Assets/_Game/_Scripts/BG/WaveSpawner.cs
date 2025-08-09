@@ -28,13 +28,6 @@ public class WaveSpawner : MonoBehaviour
     private int currentWave = 0;
     public System.Action OnWaveCleared;
 
-    private void Start()
-    {
-        if (mode == WaveMode.Infinite)
-            StartNextWave();
-        UpdateWaveText();
-    }
-
     [Button("Start Next Wave")]
     public void StartNextWave()
     {

@@ -32,7 +32,7 @@ public class TurnManager : MonoBehaviour
     #endregion
 
     #region Unity Lifecycle
-    private void Start()
+    private IEnumerator Start()
     {
         if (player == null)
         {
@@ -45,6 +45,8 @@ public class TurnManager : MonoBehaviour
         Debug.Log("[TurnManager] Initialized with player: " + (player != null ? player.name : "null"));
         if (waveSpawner != null)
             waveSpawner.OnWaveCleared += OnWaveCleared;
+
+        yield return new WaitForSeconds(2f);            
         if (autoStart)
             StartCoroutine(StartCombatMode());
     }
@@ -60,12 +62,12 @@ public class TurnManager : MonoBehaviour
     private IEnumerator StartCombatMode()
     {
         currentMode = GameMode.Combat;
-        yield return new WaitForSeconds(2f);
+        
         if (parallaxController != null)
         {
             parallaxController.MoveParallax(2f);
             Debug.Log("[TurnManager] Parallax moving for 2 seconds.");
-            yield return new WaitForSeconds(2.2f);
+            yield return new WaitForSeconds(4f);
         }
         // Only start a new wave if there are no enemies
         if (enemies.Count == 0 && waveSpawner != null)

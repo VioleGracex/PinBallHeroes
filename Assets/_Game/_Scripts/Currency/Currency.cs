@@ -2,6 +2,10 @@ using UnityEngine;
 
 public class Currency : MonoBehaviour
 {
+    [Header("Metamorphosis")]
+    public bool canMetamorphosis = true;
+    private float metamorphosisCooldown = 0.5f;
+    private float spawnTime = -10f;
     public bool collected = false;
 
     [Header("Movement Settings")]
@@ -16,6 +20,7 @@ public class Currency : MonoBehaviour
 
     void Awake()
     {
+        spawnTime = Time.time;
         rb = GetComponent<Rigidbody2D>();
         if (rb == null)
         {
@@ -67,6 +72,16 @@ public class Currency : MonoBehaviour
 
     void Update()
     {
+        // Update canMetamorphosis based on cooldown
+        if (Time.time - spawnTime < metamorphosisCooldown)
+        {
+            canMetamorphosis = false;
+        }
+        else
+        {
+            canMetamorphosis = true;
+        }
+
         if (collected)
         {
             transform.position = Vector3.MoveTowards(transform.position, collectTarget, collectSpeed * Time.deltaTime);

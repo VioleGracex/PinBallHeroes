@@ -5,6 +5,7 @@ using UnityEngine;
 /// </summary>
 public class RectanglePin : MonoBehaviour
 {
+    private int timesMultiplied = 0;
     public int maxMultiplier = 5;
     private float lastTriggerTime = -10f;
     public float triggerCooldown = 0.4f;
@@ -25,7 +26,8 @@ public class RectanglePin : MonoBehaviour
 
     private void OnTriggerExit2D(Collider2D other)
     {
-        if (other.GetComponent<Currency>())
+        var currency = other.GetComponent<Currency>();
+        if (currency != null)
         {
             // Only trigger if object is moving downward (from above)
             Rigidbody2D rb = other.attachedRigidbody;
@@ -45,8 +47,9 @@ public class RectanglePin : MonoBehaviour
                     mgr.SpawnPinball(other.transform.position + offset, Quaternion.identity, false);
                 }
             }
-            // Destroy this pin if multiplier has reached or exceeded maxMultiplier
-            if (multiplier >= maxMultiplier)
+            timesMultiplied++;
+            // Destroy this pin if it has multiplied balls maxMultiplier times
+            if (timesMultiplied >= maxMultiplier)
             {
                 Destroy(gameObject);
             }

@@ -9,9 +9,9 @@ using System.Collections.Generic;
 public class Player : MonoBehaviour
 {
     [Header("Currency")]
-    [Tooltip("Chance (0-100) to drop currency on attack (e.g. 5 for 5%)")]
+    [Tooltip("Chance (0-100) to drop currency on attack (e.g. 5 for 15%)")]
     [Range(0f, 100f)]
-    public float currencyDropChance = 20f;
+    public float currencyDropChance = 15;
 
     [SerializeField] private int _maxHP = 100;
     #region Fields

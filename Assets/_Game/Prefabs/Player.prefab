@@ -101,7 +101,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85ae29e1c1b2620478663f4ed70da422, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  currencyDropChance: 5
+  currencyDropChance: 15
   _maxHP: 100
   _currentHP: 100
   _attackDamage: 20

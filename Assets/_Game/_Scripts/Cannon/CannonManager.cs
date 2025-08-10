@@ -138,6 +138,7 @@ public class CannonManager : MonoBehaviour
         }
         pinballManager.SpawnPinball(spawnPos, transform.rotation);
         ammo--;
+        displayedAmmo = ammo;
         UpdateAmmoText();
         Debug.Log($"[CannonManager] Fired pinball. Ammo left: {ammo}");
     }
@@ -261,7 +262,8 @@ public class CannonManager : MonoBehaviour
             yield return null;
         }
         displayedAmmo = to;
-        UpdateAmmoText();
+    displayedAmmo = ammo;
+    UpdateAmmoText();
     }
 
     private void UpdateAmmoText()

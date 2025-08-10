@@ -9,11 +9,12 @@ using System.Collections.Generic;
 public class Player : MonoBehaviour
 {
     [Header("Currency")]
-    [Tooltip("Chance (0-1) to drop currency on attack (e.g. 0.2 for 20%)")]
-    [Range(0f, 1f)]
-    public float currencyDropChance = 0.2f;
+    [Tooltip("Chance (0-100) to drop currency on attack (e.g. 5 for 5%)")]
+    [Range(0f, 100f)]
+    public float currencyDropChance = 20f;
 
     [SerializeField] private int _maxHP = 100;
+    #region Fields
     [SerializeField] private int _currentHP = 100;
     [SerializeField] private int _attackDamage = 10;
     [SerializeField] private float _attackSpeed = 1.0f; // Attacks per turn
@@ -30,6 +31,7 @@ public class Player : MonoBehaviour
     [Header("Projectile Fire Point Offset (local)")]
     public Vector2 firePointOffset = new Vector2(0.5f, 0.2f);
     [Header("Projectile Travel Time (seconds)")]
+    #endregion
     [SerializeField]
     private float projectileTravelTime = 1f;
 
@@ -75,7 +77,10 @@ public class Player : MonoBehaviour
     public void IncreaseAttackDamage(int amount) => _attackDamage += amount;
     public void IncreaseAttackSpeed(float amount) => _attackSpeed += amount;
     public void IncreaseArmor(int amount) => _armor += amount;
-    public void IncreaseCurrencyDropChance(float amount) => currencyDropChance += amount;
+    public void IncreaseCurrencyDropChance(float amount)
+    {
+        currencyDropChance = Mathf.Clamp(currencyDropChance + amount, 0f, 100f);
+    }
 
     public void MultiplyMaxHP(int multiplier)
     {
@@ -87,7 +92,10 @@ public class Player : MonoBehaviour
     public void MultiplyAttackDamage(int multiplier) => _attackDamage *= multiplier;
     public void MultiplyAttackSpeed(float multiplier) => _attackSpeed *= multiplier;
     public void MultiplyArmor(int multiplier) => _armor *= multiplier;
-    public void MultiplyCurrencyDropChance(float multiplier) => currencyDropChance *= multiplier;
+    public void MultiplyCurrencyDropChance(float multiplier)
+    {
+        currencyDropChance = Mathf.Clamp(currencyDropChance * multiplier, 0f, 100f);
+    }
 
     public int GetMaxHP() => _maxHP;
     public int GetCurrentHP() => _currentHP;
@@ -158,10 +166,12 @@ public class Player : MonoBehaviour
             target.TakeDamage(_attackDamage);
         }
 
-        // Currency drop chance on attack
-        if (target != null && Random.value < currencyDropChance)
+        // Currency drop chance on attack (0-100)
+        float roll = Random.Range(0f, 100f);
+        Debug.Log($"[Player] Currency drop roll: {roll} vs chance: {currencyDropChance}");
+        if (target != null && roll < currencyDropChance)
         {
-            Debug.Log($"[Player] Currency dropped on attack at {target.transform.position} (Chance: {currencyDropChance * 100})");
+            Debug.Log($"[Player] Currency dropped on attack at {target.transform.position} (Chance: {currencyDropChance}%)");
             target.SpawnCurrencyOnDamage();
         }
     }

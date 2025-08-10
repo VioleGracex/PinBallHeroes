@@ -26,12 +26,15 @@ public class TurnManager : MonoBehaviour
     [Header("Currency Collection")]
     [SerializeField]
     private CannonManager cannonManager;
+    [SerializeField]
+    private PinballManager pinballManager;
     [Header("Pause Menu")]
     [SerializeField]
     private GameObject pauseMenu;
     private enum GameMode { Combat, Pinball, CardSelect }
     private GameMode currentMode = GameMode.Combat;
     private int enemiesFinishedCount = 0;
+   
     #endregion
 
     #region Unity Lifecycle
@@ -127,10 +130,6 @@ public class TurnManager : MonoBehaviour
     #endregion
 
     #region Pinball Mode
-    private void StartPinballMode()
-    {
-        StartCoroutine(PinballModeRoutine());
-    }
 
     private IEnumerator PinballModeRoutine()
     {
@@ -138,11 +137,28 @@ public class TurnManager : MonoBehaviour
         // Move camera to pinball position and wait
         if (cameraController != null)
             yield return StartCoroutine(cameraController.MoveToPinballPosition());
-        Debug.Log("[TurnManager] Pinball mode started (not yet implemented)");
-        // TODO: Implement pinball gameplay here
-        Debug.Log("[TurnManager] Pinball mode ended. Calculating currency...");
+        if (pinballManager != null && cannonManager != null)
+        {
+            pinballManager.StartPinballMode();
+        }   
+    }
+    private void StartPinballMode()
+    {
+        if (pinballManager != null)
+        {
+            pinballManager.OnPinballModeEnd -= OnPinballModeEndHandler; // Ensure no duplicate
+            pinballManager.OnPinballModeEnd += OnPinballModeEndHandler;
+        }
+        StartCoroutine(PinballModeRoutine());
+    }
+
+    private void OnPinballModeEndHandler()
+    {
+        if (pinballManager != null)
+            pinballManager.OnPinballModeEnd -= OnPinballModeEndHandler;
         StartCardMode();
     }
+
     #endregion
 
     #region Card Select Mode

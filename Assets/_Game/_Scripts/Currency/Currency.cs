@@ -7,11 +7,52 @@ public class Currency : MonoBehaviour
     private float collectSpeed = 10f;
     private System.Action<Currency> onCollected;
 
+    private Rigidbody2D rb;
+
+    void Awake()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        if (rb == null)
+        {
+            rb = gameObject.AddComponent<Rigidbody2D>();
+        }
+        SetPhysicsMode(false); // Default to kinematic
+    }
+
+    /// <summary>
+    /// Switches the currency to physics (dynamic) mode.
+    /// </summary>
+    private void SetPhysicsMode(bool enablePhysics)
+    {
+        if (rb != null)
+        {
+            rb.bodyType = enablePhysics ? RigidbodyType2D.Dynamic : RigidbodyType2D.Kinematic;
+            rb.simulated = true;
+        }
+    }
+
+    /// <summary>
+    /// Switches the currency to physics (dynamic) mode.
+    /// </summary>
+    public void EnablePhysics()
+    {
+        SetPhysicsMode(true);
+    }
+
+    /// <summary>
+    /// Switches the currency to non-physics (kinematic) mode.
+    /// </summary>
+    public void DisablePhysics()
+    {
+        SetPhysicsMode(false);
+    }
+
     public void Collect(Vector3 target, System.Action<Currency> onCollectedCallback)
     {
         collected = true;
         collectTarget = target;
         onCollected = onCollectedCallback;
+        DisablePhysics();
     }
 
     public void SetTravelSpeed(float speed)

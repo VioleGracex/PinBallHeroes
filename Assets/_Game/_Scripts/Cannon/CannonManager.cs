@@ -1,9 +1,161 @@
 using UnityEngine;
 using System.Collections;
 using TMPro;
+using UnityEngine.InputSystem.EnhancedTouch;
+using UnityEngine.EventSystems;
 
 public class CannonManager : MonoBehaviour
 {
+    // --- Enhanced Touch (New Input System) ---
+    private bool canDragToRotate = false;
+    private bool isDragging = false;
+    private float lastPointerX;
+    private float targetAngle = 0f;
+    [SerializeField] PinballManager pinballManager;
+
+    private void OnEnable()
+    {
+        EnhancedTouchSupport.Enable();
+        UnityEngine.InputSystem.EnhancedTouch.Touch.onFingerDown += OnFingerDown;
+        UnityEngine.InputSystem.EnhancedTouch.Touch.onFingerUp += OnFingerUp;
+        UnityEngine.InputSystem.EnhancedTouch.Touch.onFingerMove += OnFingerMove;
+        if (shootButton != null)
+            shootButton.GetComponent<UnityEngine.UI.Button>().onClick.AddListener(OnShootButtonPressed);
+    }
+
+    private void OnDisable()
+    {
+        UnityEngine.InputSystem.EnhancedTouch.Touch.onFingerDown -= OnFingerDown;
+        UnityEngine.InputSystem.EnhancedTouch.Touch.onFingerUp -= OnFingerUp;
+        UnityEngine.InputSystem.EnhancedTouch.Touch.onFingerMove -= OnFingerMove;
+        EnhancedTouchSupport.Disable();
+        if (shootButton != null)
+            shootButton.GetComponent<UnityEngine.UI.Button>().onClick.RemoveListener(OnShootButtonPressed);
+    }
+
+    private void Start()
+    {
+    displayedAmmo = ammo;
+    UpdateAmmoText();
+    // Initialize targetAngle to current angle
+    float angle = transform.eulerAngles.z;
+    if (angle > 180f) angle -= 360f;
+    targetAngle = angle;
+    }
+
+#region Drag & Rotation
+    private void OnFingerDown(Finger finger)
+    {
+        if (!canDragToRotate) return;
+        // Prevent rotation if pointer is over UI
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(finger.index)) return;
+        // Only allow one drag at a time (first finger)
+        if (finger.index == 0)
+        {
+            isDragging = true;
+        }
+    }
+
+    private void OnFingerUp(Finger finger)
+    {
+        if (finger.index == 0)
+            isDragging = false;
+    }
+
+    private void OnFingerMove(Finger finger)
+    {
+        if (!canDragToRotate || !isDragging || finger.index != 0)
+            return;
+        // Prevent rotation if pointer is over UI
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(finger.index)) return;
+
+        // Map finger X position to angle range (left = minAngle, right = maxAngle)
+        float screenX = finger.screenPosition.x;
+        float screenWidth = Screen.width;
+        float t = Mathf.Clamp01(screenX / screenWidth);
+        // If inverted, swap minAngle and maxAngle in Lerp
+        float angle = Mathf.Lerp(maxAngle, minAngle, t);
+        transform.rotation = Quaternion.Euler(0, 0, angle);
+    }
+
+#endregion
+
+#region Shooting
+    [Header("Pinball Mode")]
+    public float minAngle = -50f;
+    public float maxAngle = 50f;
+    public float angleSpeed = 10f; // degrees per second
+    private bool isFiring = false;
+    private Coroutine firingRoutine;
+
+    // Enable this when entering Pinball mode, disable on exit
+    public void StartPinballFiring()
+    {
+        if (isFiring) return;
+        EnablePinballAiming();
+    }
+
+    private IEnumerator PinballFiringRoutine()
+    {
+        isFiring = true;
+        int totalAmmo = ammo;
+        Debug.Log($"[CannonManager] Starting pinball firing with {totalAmmo} ammo");
+        float fireDelay = 0.5f;
+        while (ammo > 0)
+        {
+            int toFire = Mathf.CeilToInt(totalAmmo * 0.2f);
+            toFire = Mathf.Clamp(toFire, 1, ammo);
+            for (int i = 0; i < toFire; i++)
+            {
+                FirePinball(pinballManager);
+                if (ammo <= 0) break;
+            }
+            yield return new WaitForSeconds(fireDelay);
+        }
+        // After firing, smoothly rotate back to 0
+        yield return StartCoroutine(RotateToZero());
+        isFiring = false;
+        DisablePinballAiming();
+    }
+
+    private void FirePinball(PinballManager pinballManager)
+    {
+        if (pinballManager == null) return;
+        Vector3 spawnPos = muzzleTransform != null ? muzzleTransform.position : (cannonMouth != null ? cannonMouth.position : transform.position);
+        if (ammo <= 0) {
+            Debug.LogWarning("[CannonManager] Tried to fire pinball with no ammo!");
+            return;
+        }
+        pinballManager.SpawnPinball(spawnPos, transform.rotation);
+        ammo--;
+        UpdateAmmoText();
+        Debug.Log($"[CannonManager] Fired pinball. Ammo left: {ammo}");
+    }
+
+    private IEnumerator RotateToZero()
+    {
+        float duration = 0.3f;
+        float elapsed = 0f;
+        float startAngle = transform.eulerAngles.z;
+        if (startAngle > 180f) startAngle -= 360f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            float angle = Mathf.Lerp(startAngle, 0f, t);
+            transform.rotation = Quaternion.Euler(0, 0, angle);
+            yield return null;
+        }
+        transform.rotation = Quaternion.identity;
+    }
+
+    public bool IsFiringPinballs()
+    {
+        return isFiring;
+    }
+#endregion
+
+#region Ammo & Collection
     public event System.Action OnReturnedToOriginalPosition;
     [Header("Cannon Target Transform (where currency flies to)")]
     public Transform cannonMouth;
@@ -77,7 +229,9 @@ public class CannonManager : MonoBehaviour
             yield return null;
         }
     }
+#endregion
 
+#region Unity Events & UI
     private void AnimateAmmoText(int from, int to)
     {
         if (ammoAnimCoroutine != null)
@@ -105,29 +259,17 @@ public class CannonManager : MonoBehaviour
         if (ammoText != null)
             ammoText.text = $"{displayedAmmo}";
     }
+#endregion
 
-    public void Shoot(int amount)
-    {
-        // TODO: Implement shooting logic (e.g., fire pinballs, play animation, etc.)
-        Debug.Log($"[CannonManager] Shooting {amount} pinballs!");
-        UpdateAmmoText();
-    }
-
-    private void Start()
-    {
-        displayedAmmo = ammo;
-        UpdateAmmoText();
-    }
-
+#region Gizmos
     private void OnDrawGizmos()
     {
-        // Draw gizmo for the collection position (center of camera + offset)
         Camera cam = mainCamera != null ? mainCamera : Camera.main;
         Vector3 collectionPos = Vector3.zero;
         if (cam != null)
         {
             collectionPos = cam.transform.position + collectionPositionOffset;
-            collectionPos.z = transform.position.z; // Match cannon's Z for 2D
+            collectionPos.z = transform.position.z;
         }
         else
         {
@@ -150,12 +292,12 @@ public class CannonManager : MonoBehaviour
             prevPoint = nextPoint;
         }
     }
+#endregion
 
 #if UNITY_EDITOR
     private Vector3 _lastCollectionPositionOffset;
     private void OnValidate()
     {
-        // Only repaint if the offset value actually changed
         if (_lastCollectionPositionOffset != collectionPositionOffset)
         {
             _lastCollectionPositionOffset = collectionPositionOffset;
@@ -163,4 +305,35 @@ public class CannonManager : MonoBehaviour
         }
     }
 #endif
+
+    [Header("Pinball UI")]
+    public GameObject shootButton; // Assign in inspector
+
+    [Header("Pinball Muzzle")]
+    public Transform muzzleTransform; // Assign in inspector for shoot location
+
+    public void EnablePinballAiming()
+    {
+        canDragToRotate = true;
+        SetShootButtonVisible(true);
+    }
+
+    public void DisablePinballAiming()
+    {
+        canDragToRotate = false;
+        SetShootButtonVisible(false);
+    }
+
+    private void SetShootButtonVisible(bool visible)
+    {
+        if (shootButton != null)
+            shootButton.SetActive(visible);
+    }
+
+    public void OnShootButtonPressed()
+    {
+        if (!canDragToRotate || isFiring || ammo <= 0) return;
+        firingRoutine = StartCoroutine(PinballFiringRoutine());
+        SetShootButtonVisible(false);
+    }
 }

@@ -90,11 +90,7 @@ public class EnemyParent : MonoBehaviour
             healthBarUI.SetHP(CurrentHP, MaxHP);
             healthBarUI.ShowDamage(damage);
         }
-        // Drop currency on hit (arc drop behind enemy)
-        if (damage > 0)
-        {
-            SpawnCurrencyOnDamage(1);
-        }
+       
         if (CurrentHP <= 0)
             Die();
     }
@@ -183,7 +179,7 @@ public class EnemyParent : MonoBehaviour
     {
         Debug.Log($"{gameObject.name} defeated!");
         // Drop currency on death (drop in place, bounce)
-    SpawnCurrencyOnDeath(currencyOnKill);
+        SpawnCurrencyOnDeath(currencyOnKill);
         OnDeath?.Invoke(this);
         Destroy(gameObject);
     }
@@ -199,8 +195,8 @@ public class EnemyParent : MonoBehaviour
         {
             Vector3 spawnPos = transform.position;
             GameObject currency = Instantiate(currencyPrefab, spawnPos, Quaternion.identity);
-            // Drop slightly behind the enemy (relative to facing direction, here -X)
-            Vector3 targetPos = spawnPos + Vector3.left * 0.7f + Vector3.up * 0.2f;
+            // Drop directly behind the enemy (relative to facing direction)
+            Vector3 targetPos = spawnPos - transform.right * 0.7f + Vector3.up * 0.2f;
             float arcHeight = 0.5f;
             float duration = 0.5f;
             StartCoroutine(AnimateArcDrop(currency.transform, spawnPos, targetPos, arcHeight, duration));
@@ -230,4 +226,3 @@ public class EnemyParent : MonoBehaviour
 }
 
 
-    

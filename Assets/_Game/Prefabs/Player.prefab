@@ -101,10 +101,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85ae29e1c1b2620478663f4ed70da422, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  currencyDropChance: 5
   _maxHP: 100
   _currentHP: 100
   _attackDamage: 20
   _attackSpeed: 1
+  _armor: 0
   projectilePrefab: {fileID: 1619911037437406314, guid: 1d20680efe19fb24ca31f3008bf85f43, type: 3}
   firePointOffset: {x: 6.67, y: 2.43}
   projectileTravelTime: 1

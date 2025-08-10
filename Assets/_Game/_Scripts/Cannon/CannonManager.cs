@@ -35,12 +35,12 @@ public class CannonManager : MonoBehaviour
 
     private void Start()
     {
-    displayedAmmo = ammo;
-    UpdateAmmoText();
-    // Initialize targetAngle to current angle
-    float angle = transform.eulerAngles.z;
-    if (angle > 180f) angle -= 360f;
-    targetAngle = angle;
+        displayedAmmo = ammo;
+        UpdateAmmoText();
+        // Initialize targetAngle to current angle
+        float angle = transform.eulerAngles.z;
+        if (angle > 180f) angle -= 360f;
+        targetAngle = angle;
     }
 
 #region Drag & Rotation
@@ -108,6 +108,7 @@ public class CannonManager : MonoBehaviour
             for (int i = 0; i < toFire; i++)
             {
                 FirePinball(pinballManager);
+                UpdateAmmoText();
                 if (ammo <= 0) break;
             }
             yield return new WaitForSeconds(fireDelay);
@@ -116,6 +117,7 @@ public class CannonManager : MonoBehaviour
         yield return StartCoroutine(RotateToZero());
         isFiring = false;
         DisablePinballAiming();
+        UpdateAmmoText(); 
     }
 
     private void FirePinball(PinballManager pinballManager)

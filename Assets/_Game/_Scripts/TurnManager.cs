@@ -28,6 +28,8 @@ public class TurnManager : MonoBehaviour
     private CannonManager cannonManager;
     [SerializeField]
     private PinballManager pinballManager;
+    [SerializeField]
+    private PinFieldGenerator pinFieldGenerator;
     [Header("Pause Menu")]
     [SerializeField]
     private GameObject pauseMenu;
@@ -134,6 +136,7 @@ public class TurnManager : MonoBehaviour
     private IEnumerator PinballModeRoutine()
     {
         currentMode = GameMode.Pinball;
+        if (pinFieldGenerator != null) pinFieldGenerator.RegenerateField();
         // Move camera to pinball position and wait
         if (cameraController != null)
             yield return StartCoroutine(cameraController.MoveToPinballPosition());

@@ -8,9 +8,12 @@ public class Flipper : MonoBehaviour
     public HingeJoint2D hinge;
 
     [Header("Torque Settings")]
-    public float flipTorque = 20000f;
-    public float holdTorque = 8000f;    // Optional: to keep flipper up while holding
-    public float releaseTorque = -15000f;
+    [Tooltip("Torque applied when flipping (impulse)")]
+    public float flipImpulse = 1000f;
+    [Tooltip("Torque to hold flipper up")]
+    public float holdTorque = 20000f;
+    [Tooltip("Torque to return flipper down")]
+    public float releaseTorque = -30000f;
 
     [Header("Limit Angles")]
     public float minAngle = -45f; // Down
@@ -57,23 +60,34 @@ public class Flipper : MonoBehaviour
 
     void FixedUpdate()
     {
+        // If the button is inactive/hidden, make sure flipping is false!
+        if (flipperButton != null && !flipperButton.gameObject.activeInHierarchy)
+            flipping = false;
+
         if (hinge == null || rb == null) return;
 
         float flipperAngle = hinge.jointAngle; // In degrees
 
         if (flipping)
         {
-            // Only add torque if not already at max angle
-            if (flipperAngle < maxAngle - 1f)
-                rb.AddTorque(flipTorque * Time.fixedDeltaTime, ForceMode2D.Force);
+            // Snap up with impulse if not already at max angle
+            if (flipperAngle < maxAngle - 2f)
+            {
+                rb.AddTorque(flipImpulse, ForceMode2D.Impulse);
+            }
             else
-                rb.AddTorque(holdTorque * Time.fixedDeltaTime, ForceMode2D.Force); // Hold at top
+            {
+                // Hold at top
+                rb.AddTorque(holdTorque * Time.fixedDeltaTime, ForceMode2D.Force);
+            }
         }
         else
         {
-            // Only add torque if not already at min angle
-            if (flipperAngle > minAngle + 1f)
+            // Snap down with strong force if not already at min angle
+            if (flipperAngle > minAngle + 2f)
+            {
                 rb.AddTorque(releaseTorque * Time.fixedDeltaTime, ForceMode2D.Force);
+            }
         }
     }
 }

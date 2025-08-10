@@ -11,10 +11,10 @@ public class PinballManager : MonoBehaviour
     public GameObject pinballPrefab; // Should be Currency prefab
     public int pinballLayer = 8; // Set to Pinball layer
     public float fireRatePercent = 0.2f; // 20% per second
-    public float pinballForce = 20f;
+    public float pinballForce = 60f;
     public float stuckVelocityThreshold = 0.1f;
     public float stuckTime = 2f;
-    public float modeTimeout = 60f;
+    public float modeTimeout = 120f;
     public Camera pinballCamera;
     [Header("Flipper UI Buttons")]
     public GameObject leftFlipperButton;

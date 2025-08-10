@@ -103,6 +103,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   collected: 0
+  maxVelocity: 200
 --- !u!58 &6368795954849310783
 CircleCollider2D:
   m_ObjectHideFlags: 0

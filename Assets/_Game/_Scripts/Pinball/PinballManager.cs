@@ -31,20 +31,25 @@ public class PinballManager : MonoBehaviour
 
 
 #region Pinball Logic
-    // Called by CannonManager to spawn a pinball
-    public void SpawnPinball(Vector3 position, Quaternion rotation)
+    // Spawns a pinball at the given position and rotation. Optionally applies force if setForce is true.
+    public void SpawnPinball(Vector3 position, Quaternion rotation, bool setForce = true)
     {
-        Debug.Log($"[PinballManager] Spawning pinball at {position} rot {rotation.eulerAngles}");
+        // Add a small random offset to avoid overlapping
+        Vector2 randomOffset = Random.insideUnitCircle * 0.15f;
+        Vector3 spawnPos = position + (Vector3)randomOffset;
+        Debug.Log($"[PinballManager] Spawning pinball at {spawnPos} rot {rotation.eulerAngles}");
         if (pinballPrefab == null) { Debug.LogWarning("[PinballManager] pinballPrefab is null!"); return; }
-        GameObject go = Instantiate(pinballPrefab, position, rotation);
+        GameObject go = Instantiate(pinballPrefab, spawnPos, rotation);
         Currency currency = go.GetComponent<Currency>();
         if (currency != null)
         {
             currency.EnablePhysics();
             Rigidbody2D rb = go.GetComponent<Rigidbody2D>();
-            if (rb != null)
+            if (rb != null && setForce)
             {
-                rb.linearVelocity = Vector2.down * pinballForce;
+                // Clamp velocity to prevent excessive speed
+                float clampedForce = Mathf.Clamp(pinballForce, 10f, 80f);
+                rb.linearVelocity = Vector2.down * clampedForce;
                 rb.angularVelocity = 0f;
                 Debug.Log($"[PinballManager] Set pinball velocity to {rb.linearVelocity}");
             }

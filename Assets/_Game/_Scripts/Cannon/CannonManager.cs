@@ -47,11 +47,15 @@ public class CannonManager : MonoBehaviour
     private void OnFingerDown(Finger finger)
     {
         if (!canDragToRotate) return;
-        // Prevent rotation if pointer is over UI
+        // Prevent rotation if pointer is over any UI (including buttons)
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(finger.index)) return;
         // Only allow one drag at a time (first finger)
         if (finger.index == 0)
         {
+            // Only accept touches in the upper 40% of the screen
+            float screenY = finger.screenPosition.y;
+            float screenHeight = Screen.height;
+            if (screenY < screenHeight * 0.6f) return;
             isDragging = true;
         }
     }
@@ -66,8 +70,12 @@ public class CannonManager : MonoBehaviour
     {
         if (!canDragToRotate || !isDragging || finger.index != 0)
             return;
-        // Prevent rotation if pointer is over UI
+        // Prevent rotation if pointer is over any UI (including buttons)
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(finger.index)) return;
+        // Only accept touches in the upper 40% of the screen
+        float screenY = finger.screenPosition.y;
+        float screenHeight = Screen.height;
+        if (screenY < screenHeight * 0.6f) return;
 
         // Map finger X position to angle range (left = minAngle, right = maxAngle)
         float screenX = finger.screenPosition.x;
@@ -190,7 +198,7 @@ public class CannonManager : MonoBehaviour
         // Move cannon to center of camera
         if (!originalPosition.HasValue)
             originalPosition = transform.position;
-        Vector3 center = mainCamera != null ? mainCamera.transform.position : Vector3.zero;
+        Vector3 center = mainCamera != null ? mainCamera.transform.position + collectionPositionOffset : Vector3.zero;
         center.z = transform.position.z;
         yield return StartCoroutine(MoveToPosition(center, moveSpeed));
 

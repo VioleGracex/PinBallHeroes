@@ -3,6 +3,11 @@ using UnityEngine;
 public class Currency : MonoBehaviour
 {
     public bool collected = false;
+
+    [Header("Movement Settings")]
+    [Tooltip("Maximum velocity for the Rigidbody2D when in physics mode.")]
+    public float maxVelocity = 30f;
+
     private Vector3 collectTarget;
     private float collectSpeed = 10f;
     private System.Action<Currency> onCollected;
@@ -69,6 +74,18 @@ public class Currency : MonoBehaviour
             {
                 onCollected?.Invoke(this);
                 Destroy(gameObject);
+            }
+        }
+    }
+
+    void FixedUpdate()
+    {
+        // Limit velocity if in physics mode
+        if (rb != null && rb.bodyType == RigidbodyType2D.Dynamic && rb.simulated)
+        {
+            if (rb.linearVelocity.magnitude > maxVelocity)
+            {
+                rb.linearVelocity = rb.linearVelocity.normalized * maxVelocity;
             }
         }
     }

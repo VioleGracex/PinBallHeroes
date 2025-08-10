@@ -155,7 +155,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: -180}
   m_SizeDelta: {x: 387.3379, y: 387.3379}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &19260515
@@ -2650,7 +2650,7 @@ MonoBehaviour:
   pinballPrefab: {fileID: 6248956977343411496, guid: 8cf302e39e6a4bf4c8e89d1b479b11b5, type: 3}
   pinballLayer: 8
   fireRatePercent: 0.2
-  pinballForce: 200
+  pinballForce: 400
   stuckVelocityThreshold: 0.1
   stuckTime: 2
   modeTimeout: 120
@@ -2677,6 +2677,10 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 5045787799037782, guid: f24f67c925a5d0d40a1df4d04fb96d1f, type: 3}
+      propertyPath: holdTorque
+      value: 30000
+      objectReference: {fileID: 0}
+    - target: {fileID: 5045787799037782, guid: f24f67c925a5d0d40a1df4d04fb96d1f, type: 3}
       propertyPath: flipperButton
       value: 
       objectReference: {fileID: 1236404436}
@@ -2700,10 +2704,30 @@ PrefabInstance:
       propertyPath: pinballManager
       value: 
       objectReference: {fileID: 2017796215}
+    - target: {fileID: 437139726102353660, guid: f24f67c925a5d0d40a1df4d04fb96d1f, type: 3}
+      propertyPath: collectionPositionOffset.y
+      value: -25.34
+      objectReference: {fileID: 0}
+    - target: {fileID: 1321378502279258602, guid: f24f67c925a5d0d40a1df4d04fb96d1f, type: 3}
+      propertyPath: holdTorque
+      value: -300000
+      objectReference: {fileID: 0}
     - target: {fileID: 1321378502279258602, guid: f24f67c925a5d0d40a1df4d04fb96d1f, type: 3}
       propertyPath: flipperButton
       value: 
       objectReference: {fileID: 1921560333}
+    - target: {fileID: 1919922234768332375, guid: f24f67c925a5d0d40a1df4d04fb96d1f, type: 3}
+      propertyPath: m_Mass
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 2449760812189553846, guid: f24f67c925a5d0d40a1df4d04fb96d1f, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 6200000, guid: 1069877dcf3d8c74b8cb800ea1f80374, type: 2}
+    - target: {fileID: 2920268777043735865, guid: f24f67c925a5d0d40a1df4d04fb96d1f, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 6200000, guid: 1069877dcf3d8c74b8cb800ea1f80374, type: 2}
     - target: {fileID: 3964609592420344375, guid: f24f67c925a5d0d40a1df4d04fb96d1f, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0.12928
@@ -2748,6 +2772,18 @@ PrefabInstance:
       propertyPath: m_Name
       value: Underground
       objectReference: {fileID: 0}
+    - target: {fileID: 6601210339279832245, guid: f24f67c925a5d0d40a1df4d04fb96d1f, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 6200000, guid: 1069877dcf3d8c74b8cb800ea1f80374, type: 2}
+    - target: {fileID: 6857832201893196732, guid: f24f67c925a5d0d40a1df4d04fb96d1f, type: 3}
+      propertyPath: m_Mass
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 7116544097038131471, guid: f24f67c925a5d0d40a1df4d04fb96d1f, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 6200000, guid: 1069877dcf3d8c74b8cb800ea1f80374, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

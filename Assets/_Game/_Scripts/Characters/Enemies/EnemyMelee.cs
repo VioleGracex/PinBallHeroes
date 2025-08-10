@@ -4,7 +4,9 @@ using System.Collections;
 public class EnemyMelee : EnemyParent
 {
     public float attackRange = 1.5f;
+    [Tooltip("Move speed will be auto-scaled based on camera width to require at least 5 turns to reach player from edge")] 
     public float moveSpeed = 12f;
+    public int minTurnsToReachPlayer = 4;
     private Vector2 originalPosition;
     public GameObject slashEffectPrefab;
 
@@ -15,7 +17,23 @@ public class EnemyMelee : EnemyParent
         base.Start();
         originalPosition = transform.position;
         readyToPlayTurn = false;
+        ScaleMoveSpeedToCamera();
         StartCoroutine(MoveTowardPlayerOnSpawn());
+    }
+
+    private void ScaleMoveSpeedToCamera()
+    {
+        Camera cam = Camera.main;
+        if (cam == null) return;
+        float camWidth = 2f * cam.orthographicSize * cam.aspect;
+        float distToPlayer = player != null ? Vector2.Distance(transform.position, player.transform.position) : camWidth;
+        // Ensure enemy takes at least minTurnsToReachPlayer turns to reach player from current position
+        float minMovePerTurn = distToPlayer / Mathf.Max(1, minTurnsToReachPlayer);
+        // moveSpeed is used as moveSpeed * Time.deltaTime * 60f per turn (see ActMeleeTurn)
+        // So, moveSpeedPerTurn = moveSpeed * 1 (since Time.deltaTime * 60f ~ 1s per turn)
+        moveSpeed = minMovePerTurn;
+        Debug.Log($"[EnemyMelee] Scaled moveSpeed to {moveSpeed} based on camera width {camWidth} and distance to player {distToPlayer}.");
+
     }
 
     private IEnumerator MoveTowardPlayerOnSpawn()

@@ -102,7 +102,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   currencyOnKill: 1
-  _maxHP: 50
+  _maxHP: 130
   _attackDamage: 3
   _attackSpeed: 1
   currencyPrefab: {fileID: 6248956977343411496, guid: 4fc9e68bb0b086940b3c06041bafb70a, type: 3}

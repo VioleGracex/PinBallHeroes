@@ -4,7 +4,7 @@ public class CirclePin : MonoBehaviour
    
 {
     private float lastTriggerTime = -10f;
-    public float triggerCooldown = 0.2f;
+    public float triggerCooldown = 0.4f;
     public TMPro.TextMeshProUGUI amountText;
     public int pinballAmount = 3;
 
@@ -31,7 +31,7 @@ public class CirclePin : MonoBehaviour
             PinballManager mgr = FindFirstObjectByType<PinballManager>();
             if (pinballAmount > 0 && mgr != null)
             {
-                mgr.SpawnPinball(collision.transform.position, Quaternion.identity);
+                mgr.SpawnPinball(collision.transform.position, Quaternion.identity, false);
             }
             pinballAmount--;
             UpdateAmountText();
